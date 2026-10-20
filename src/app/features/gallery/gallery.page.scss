@@ -1,0 +1,133 @@
+.gallery-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gallery-bar--select {
+  align-items: center;
+}
+
+.gallery-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gallery-feedback {
+  align-items: center;
+  margin-top: 8px;
+}
+
+.gallery-feedback__text {
+  flex: 1;
+}
+
+.select-hint {
+  margin: 4px 0 8px;
+}
+
+.grid-toggle {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--pf-line);
+  border-radius: 14px;
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  cursor: pointer;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 4px 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--pf-ink-muted);
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .badge {
+    position: static;
+  }
+}
+
+.day__title {
+  margin: 14px 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tile {
+  appearance: none;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pf-tint);
+  cursor: zoom-in;
+  // Holding a tile selects it; keep the browser's own long-press menu and text selection out of the way.
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.tile--selecting {
+  cursor: pointer;
+}
+
+.tile--marked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 23, 28, 0.35);
+}
+
+.badge {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.badge--backed-up {
+  background: var(--pf-surface);
+  box-shadow: 0 0 0 1px var(--pf-line);
+  color: var(--pf-keep);
+}
+
+.badge--kept {
+  background: var(--pf-keep);
+  color: #ffffff;
+}
+
+.badge--marked {
+  background: var(--pf-delete);
+  color: #ffffff;
+}

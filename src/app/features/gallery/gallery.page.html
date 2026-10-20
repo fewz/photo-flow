@@ -1,0 +1,164 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    @if (selecting()) {
+      <div class="gallery-bar gallery-bar--select">
+        <button type="button" class="pf-link select-cancel" (click)="exitSelection()">Cancel</button>
+        <h1 class="pf-screen-title pf-screen-title--small" aria-live="polite">{{ format(selected().size) }} selected</h1>
+        <button type="button" class="pf-link" [disabled]="selectingAll() || filterCount() === 0" (click)="toggleSelectAll()">
+          {{ selectingAll() ? 'Selecting…' : allSelected() ? 'Deselect all' : 'Select all' }}
+        </button>
+      </div>
+    } @else {
+      <div class="gallery-bar">
+        <div>
+          <h1 class="pf-screen-title">Gallery</h1>
+          <p class="pf-screen-subtitle">{{ format(counts().total) }} photos · newest first</p>
+        </div>
+        <div class="gallery-actions">
+          @if (photos().length) {
+            <button type="button" class="pf-link" (click)="enterSelection()">Select</button>
+          }
+          <button
+            type="button"
+            class="grid-toggle"
+            [attr.aria-label]="columns() === 3 ? 'Show 4 photos per row' : 'Show 3 photos per row'"
+            (click)="toggleColumns()"
+          >
+            <app-icon name="gallery" />
+          </button>
+        </div>
+      </div>
+    }
+  </ion-toolbar>
+  <div class="pf-filters" role="group" aria-label="Filter photos">
+    @for (chip of chips(); track chip.id) {
+      <button type="button" class="pf-filter-chip" [attr.aria-pressed]="filter() === chip.id" (click)="setFilter(chip.id)">
+        {{ chip.label }} <span>{{ format(chip.count) }}</span>
+      </button>
+    }
+  </div>
+</ion-header>
+
+<ion-content class="pf-content">
+  @if (feedback(); as message) {
+    <div class="pf-notice gallery-feedback" role="status" [class.pf-notice--error]="message.error">
+      <app-icon [name]="message.error ? 'alert' : 'cloud-upload'" [size]="18" [stroke]="2" />
+      <span class="gallery-feedback__text">{{ message.text }}</span>
+      @if (message.showUploads) {
+        <button type="button" class="pf-link" (click)="open('/uploads')">View uploads</button>
+      }
+    </div>
+  }
+
+  @if (selecting()) {
+    <p class="pf-caption select-hint">Tap photos to select. “Select all” picks every photo in {{ filter() === 'all' ? 'the gallery' : 'this filter' }}.</p>
+  } @else {
+    <ul class="legend" aria-label="Badges">
+      <li><span class="badge badge--backed-up"><app-icon name="cloud" [size]="12" [stroke]="2.6" /></span>Backed up</li>
+      <li><span class="badge badge--kept"><app-icon name="check" [size]="11" [stroke]="3" /></span>Kept</li>
+      <li><span class="badge badge--marked"><app-icon name="close" [size]="11" [stroke]="3" /></span>Marked for deletion</li>
+    </ul>
+  }
+
+  @if (loaded() && photos().length === 0) {
+    <section class="pf-empty" aria-labelledby="gallery-empty-title">
+      <span class="pf-icon-tile pf-icon-tile--large"><app-icon name="gallery" [size]="28" /></span>
+      @if (counts().total === 0) {
+        <h2 id="gallery-empty-title" class="pf-empty__title">No photos yet</h2>
+        <p class="pf-body-muted">Scan this device from Home to fill the gallery.</p>
+        <button type="button" class="pf-button pf-button--secondary" (click)="open('/home')">Go to Home</button>
+      } @else {
+        <h2 id="gallery-empty-title" class="pf-empty__title">Nothing here</h2>
+        <p class="pf-body-muted">No photos match this filter.</p>
+        <button type="button" class="pf-button pf-button--secondary" (click)="setFilter('all')">Show all photos</button>
+      }
+    </section>
+  }
+
+  @for (section of sections(); track section.key) {
+    <section class="day" [attr.aria-label]="section.label">
+      <h2 class="day__title">{{ section.label }}</h2>
+      <div class="grid" [class.grid--four]="columns() === 4">
+        @for (photo of section.photos; track photo.id) {
+          <button
+            type="button"
+            class="tile"
+            [class.tile--marked]="state(photo) === 'marked'"
+            [class.pf-tile-selected]="isSelected(photo.id)"
+            [class.tile--selecting]="selecting()"
+            [attr.role]="selecting() ? 'checkbox' : null"
+            [attr.aria-checked]="selecting() ? isSelected(photo.id) : null"
+            [attr.aria-label]="tileLabel(photo)"
+            (pointerdown)="onPressStart(photo, $event)"
+            (pointermove)="onPressMove($event)"
+            (pointerup)="cancelPress()"
+            (pointercancel)="cancelPress()"
+            (pointerleave)="cancelPress()"
+            (contextmenu)="$event.preventDefault()"
+            (click)="tap(photo)"
+          >
+            <app-photo-thumb [uri]="photo.uri" />
+            @if (selecting()) {
+              <span class="pf-select-check" aria-hidden="true">
+                @if (isSelected(photo.id)) {
+                  <app-icon name="check" [size]="13" [stroke]="3" />
+                }
+              </span>
+            }
+            @switch (state(photo)) {
+              @case ('backed-up') {
+                <span class="badge badge--backed-up" aria-hidden="true"><app-icon name="cloud" [size]="13" [stroke]="2.6" /></span>
+              }
+              @case ('kept') {
+                <span class="badge badge--kept" aria-hidden="true"><app-icon name="check" [size]="12" [stroke]="3" /></span>
+              }
+              @case ('marked') {
+                <span class="badge badge--marked" aria-hidden="true"><app-icon name="close" [size]="12" [stroke]="3" /></span>
+              }
+            }
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <ion-infinite-scroll [disabled]="done()" (ionInfinite)="loadMore($event)">
+    <ion-infinite-scroll-content loadingText="Loading more photos" />
+  </ion-infinite-scroll>
+</ion-content>
+
+@if (selecting()) {
+  <ion-footer class="pf-action-bar">
+    <div class="pf-action-bar__inner">
+      <div class="pf-action-bar__text">
+        <strong>{{ format(selected().size) }} selected</strong>
+        <span class="pf-caption">Kept photos back up to Nextcloud</span>
+      </div>
+      <button
+        type="button"
+        class="pf-button pf-button--primary"
+        [disabled]="selected().size === 0 || busy()"
+        (click)="askBackup()"
+      >
+        <app-icon name="cloud-upload" [size]="18" [stroke]="2.1" />
+        Back up
+      </button>
+    </div>
+  </ion-footer>
+}
+
+@if (viewing(); as photo) {
+  <app-photo-viewer [uri]="photo.uri" [fileName]="photo.fileName" (closed)="viewing.set(null)" />
+}
+
+@if (pendingBackup(); as request) {
+  <app-backup-sheet
+    [plan]="request.plan"
+    [configured]="request.configured"
+    [offline]="!online()"
+    [busy]="busy()"
+    (confirmed)="confirmBackup()"
+    (cancelled)="cancelBackup()"
+    (openSettings)="openSettings()"
+  />
+}

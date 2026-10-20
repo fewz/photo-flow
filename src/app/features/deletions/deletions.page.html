@@ -1,0 +1,135 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text="" aria-label="Back to home" />
+    </ion-buttons>
+    <h1 class="pf-screen-title pf-screen-title--small">Review deletions</h1>
+    @if (marked()) {
+      <ion-buttons slot="end">
+        <button type="button" class="pf-link" [attr.aria-pressed]="selecting()" (click)="toggleSelecting()">
+          {{ selecting() ? 'Cancel' : 'Select' }}
+        </button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="pf-content">
+  @if (loaded() && marked() === 0) {
+    <section class="pf-empty" aria-labelledby="nothing-marked-title">
+      <span class="pf-icon-tile pf-icon-tile--large"><app-icon name="trash" [size]="28" /></span>
+      <h2 id="nothing-marked-title" class="pf-empty__title">Nothing marked</h2>
+      <p class="pf-body-muted">
+        Swipe left while reviewing to mark a photo. The file stays on this device until you confirm it here.
+      </p>
+      @if (feedback(); as message) {
+        <p class="pf-feedback" role="status" [class.pf-feedback--error]="message.error">{{ message.text }}</p>
+      }
+    </section>
+  } @else if (loaded()) {
+    <div class="pf-stack">
+      <section class="pf-hero" aria-labelledby="free-title">
+        <div class="hero-intro">
+          <h2 id="free-title" class="pf-hero__eyebrow">Ready to free</h2>
+          <p class="hero-amount">
+            <span class="pf-display">{{ storage(recoverableBytes()) }}</span>
+            <span class="pf-hero__sub">from {{ format(marked()) }} {{ marked() === 1 ? 'photo' : 'photos' }}</span>
+          </p>
+        </div>
+        <div class="hero-backup">
+          <app-icon [name]="backupBeforeDelete() ? 'cloud-upload' : 'warning'" [size]="18" [stroke]="2" />
+          @if (backupBeforeDelete()) {
+            <span><strong>Backup before delete is on.</strong> Photos without a backup upload to Nextcloud first.</span>
+          } @else {
+            <span><strong>Backup before delete is off.</strong> Local delete will not keep a backup.</span>
+          }
+        </div>
+        <button type="button" class="pf-button pf-button--danger pf-button--large" [disabled]="busy()" (click)="askDeleteAll()">
+          <app-icon name="trash" [size]="18" [stroke]="2.1" />
+          Delete all {{ format(marked()) }}
+        </button>
+      </section>
+
+      @if (feedback(); as message) {
+        <p class="pf-feedback" role="status" [class.pf-feedback--error]="message.error">{{ message.text }}</p>
+      }
+
+      @if (failed().length) {
+        <div class="pf-notice pf-notice--error failed-notice" role="status">
+          <app-icon name="alert" [size]="20" [stroke]="2.2" />
+          <span class="failed-notice__text">
+            <strong>{{ failed().length === 1 ? '1 photo wasn’t deleted' : format(failed().length) + ' photos weren’t deleted' }}</strong>
+            <span>{{ failed()[0].deleteError }}</span>
+          </span>
+          <button type="button" class="pf-button pf-button--quiet pf-button--small" [disabled]="busy()" (click)="askRetryFailed()">
+            Retry
+          </button>
+        </div>
+      }
+
+      <div class="grid-heading">
+        <h2 class="pf-section__title">Marked photos</h2>
+        @if (selecting()) {
+          <button type="button" class="pf-link" (click)="selectLoaded()">Select all shown</button>
+        } @else {
+          <span class="pf-caption">Tap to look or put back</span>
+        }
+      </div>
+
+      <div class="mark-grid">
+        @for (photo of photos(); track photo.id) {
+          <button
+            type="button"
+            class="mark-tile"
+            [class.is-checked]="isSelected(photo.id)"
+            [class.has-error]="!!photo.deleteError"
+            [attr.role]="selecting() ? 'checkbox' : null"
+            [attr.aria-checked]="selecting() ? isSelected(photo.id) : null"
+            [attr.aria-label]="tileLabel(photo)"
+            (click)="tap(photo)"
+          >
+            <app-photo-thumb [uri]="photo.uri" />
+            <span class="mark-tile__size" aria-hidden="true">{{ storage(photo.sizeBytes) }}</span>
+            @if (verified(photo)) {
+              <span class="mark-tile__badge" aria-hidden="true"><app-icon name="cloud" [size]="14" [stroke]="2.4" /></span>
+            }
+            @if (selecting()) {
+              <span class="mark-tile__check" aria-hidden="true">
+                @if (isSelected(photo.id)) {
+                  <app-icon name="check" [size]="14" [stroke]="3" />
+                }
+              </span>
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+    <ion-infinite-scroll [disabled]="done()" (ionInfinite)="loadMore($event)">
+      <ion-infinite-scroll-content loadingText="Loading marked photos" />
+    </ion-infinite-scroll>
+  }
+</ion-content>
+
+@if (selecting()) {
+  <ion-footer class="select-bar">
+    <div class="select-bar__inner">
+      <div class="select-bar__text">
+        <strong>{{ format(selected().size) }} selected</strong>
+        <span class="pf-caption">{{ storage(selectedBytes()) }} to free</span>
+      </div>
+      <button
+        type="button"
+        class="pf-button pf-button--danger"
+        [disabled]="selected().size === 0 || busy()"
+        (click)="askDeleteSelected()"
+      >
+        Delete selected
+      </button>
+    </div>
+  </ion-footer>
+}
+
+@if (pending(); as request) {
+  <app-delete-sheet [summary]="request.summary" [photos]="request.photos" [busy]="busy()" (confirmed)="confirmDelete()" (cancelled)="cancelDelete()" />
+}

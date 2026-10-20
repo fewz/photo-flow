@@ -1,0 +1,71 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/deletions" text="" aria-label="Back to review deletions" />
+    </ion-buttons>
+    <h1 class="pf-screen-title pf-screen-title--small">Marked photo</h1>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="pf-content">
+  @if (photo(); as current) {
+    <div class="pf-stack">
+      <button
+        type="button"
+        class="detail-photo"
+        [attr.aria-label]="'View ' + current.fileName + ' full screen'"
+        (click)="viewing.set(true)"
+      >
+        <app-photo-thumb [uri]="current.uri" [size]="previewSize" fit="contain" />
+        <span class="detail-zoom" aria-hidden="true"><app-icon name="expand" [size]="18" [stroke]="2.2" /></span>
+      </button>
+
+      <div class="detail-info">
+        <div>
+          <p class="pf-title">{{ current.fileName }}</p>
+          <p class="pf-caption">{{ meta() }} · still on this device</p>
+        </div>
+        <span class="pf-pill" [class.pf-pill--ok]="backedUp()">
+          <app-icon [name]="backedUp() ? 'cloud' : 'cloud-upload'" [size]="13" [stroke]="2.2" />
+          {{ backedUp() ? 'Backed up' : 'No backup yet' }}
+        </span>
+      </div>
+
+      @if (current.deleteError) {
+        <div class="pf-notice pf-notice--error" role="status">
+          <app-icon name="alert" [size]="18" [stroke]="2.2" />
+          <span><strong>Not deleted.</strong> {{ current.deleteError }}</span>
+        </div>
+      }
+      @if (message()) {
+        <p class="pf-feedback" role="status">{{ message() }}</p>
+      }
+
+      <div class="pf-grid-2">
+        <button type="button" class="pf-button pf-button--secondary" [disabled]="busy()" (click)="putBack()">
+          <app-icon name="undo" [size]="18" [stroke]="2.2" />
+          Put back
+        </button>
+        <button type="button" class="pf-button pf-button--danger" [disabled]="busy()" (click)="askDelete()">
+          <app-icon name="trash" [size]="18" [stroke]="2.1" />
+          Delete
+        </button>
+      </div>
+      <p class="pf-caption detail-hint">Put back returns the photo to review. Nothing is removed until you confirm.</p>
+    </div>
+  } @else if (loaded()) {
+    <section class="pf-empty" aria-labelledby="unavailable-title">
+      <span class="pf-icon-tile pf-icon-tile--large"><app-icon name="image" [size]="28" /></span>
+      <h2 id="unavailable-title" class="pf-empty__title">Photo unavailable</h2>
+      <p class="pf-body-muted">This photo is no longer marked for deletion.</p>
+    </section>
+  }
+</ion-content>
+
+@if (viewing() && photo(); as current) {
+  <app-photo-viewer [uri]="current.uri" [fileName]="current.fileName" (closed)="viewing.set(false)" />
+}
+
+@if (confirming(); as summary) {
+  <app-delete-sheet [summary]="summary" [photos]="sheetPhotos()" [busy]="busy()" (confirmed)="confirmDelete()" (cancelled)="cancelDelete()" />
+}

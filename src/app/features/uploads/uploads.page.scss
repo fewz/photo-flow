@@ -1,0 +1,170 @@
+.uploads-bar,
+.hero-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hero-top {
+  align-items: flex-start;
+}
+
+.hero-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.hero-percent {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.hero-summary {
+  margin-top: 8px;
+}
+
+.hero-button {
+  background: var(--pf-night-2);
+  color: #ffffff;
+}
+
+.hero-button--outline {
+  border-color: #3a3f4a;
+  background: transparent;
+}
+
+.setup-notice {
+  align-items: center;
+}
+
+.setup-notice__text {
+  flex: 1;
+}
+
+.count {
+  font-weight: 500;
+  color: var(--pf-ink-muted);
+}
+
+.job-list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--pf-line);
+  border-radius: 20px;
+  background: var(--pf-surface);
+  list-style: none;
+}
+
+.job-list--failed {
+  border-color: var(--pf-delete-line);
+}
+
+.job {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--pf-divider);
+}
+
+.job--compact {
+  padding: 8px 6px 8px 14px;
+}
+
+.job__thumb {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.job__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.job__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.job__name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.job__percent {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pf-keep);
+}
+
+.job__progress {
+  height: 6px;
+}
+
+.job__error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--pf-delete);
+}
+
+.job__cancel {
+  appearance: none;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--pf-ink-muted);
+  cursor: pointer;
+}
+
+.job-more {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--pf-ink-muted);
+}
+
+.done-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--pf-line);
+  border-radius: 18px;
+  background: var(--pf-surface);
+}
+
+.done-row__text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}

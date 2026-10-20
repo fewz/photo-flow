@@ -1,0 +1,238 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <h1 class="pf-screen-title">Settings</h1>
+    <p class="pf-screen-subtitle">Backup server, deletion safety and library</p>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="pf-content">
+  <div class="pf-stack pf-stack--loose">
+    <section class="pf-section" aria-labelledby="nc-title">
+      <h2 id="nc-title" class="pf-section__title">Nextcloud server</h2>
+      <form class="pf-card nextcloud-form" novalidate (submit)="save($event)">
+        <div
+          class="pf-status"
+          role="status"
+          aria-live="polite"
+          [class.pf-status--ok]="status().tone === 'ok'"
+          [class.pf-status--error]="status().tone === 'error'"
+        >
+          @if (status().tone === 'error') {
+            <app-icon name="alert" [size]="18" [stroke]="2.2" />
+          } @else {
+            <span class="pf-dot" [class.pf-dot--idle]="status().tone === 'idle'" [class.pf-dot--keep]="status().tone === 'busy'"></span>
+          }
+          <span class="pf-status__text">
+            <span class="pf-status__title">{{ status().title }}</span>
+            <span class="pf-status__detail">{{ status().detail }}</span>
+          </span>
+        </div>
+
+        <div class="pf-field">
+          <label class="pf-field__label" for="nc-server">Server URL</label>
+          <input
+            id="nc-server"
+            class="pf-input"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="https://cloud.example.com"
+            [value]="serverUrl()"
+            (input)="edit('serverUrl', $event)"
+          />
+          @if (usesHttp()) {
+            <p class="pf-field__warning">
+              <app-icon name="warning" [size]="14" [stroke]="2.2" />
+              This server uses HTTP. The app password can be intercepted on an untrusted network.
+            </p>
+          }
+        </div>
+
+        <div class="pf-field">
+          <label class="pf-field__label" for="nc-username">Username</label>
+          <input
+            id="nc-username"
+            class="pf-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            [attr.aria-invalid]="authFailed()"
+            [value]="username()"
+            (input)="edit('username', $event)"
+          />
+        </div>
+
+        <div class="pf-field">
+          <div class="pf-field__label-row">
+            <label class="pf-field__label" for="nc-password">App password</label>
+            @if (passwordSaved()) {
+              <span class="pf-saved">
+                <app-icon name="lock" [size]="12" [stroke]="2.4" />
+                {{ web ? 'Saved for this session' : 'Saved securely' }}
+              </span>
+            }
+          </div>
+          <input
+            id="nc-password"
+            class="pf-input"
+            type="password"
+            autocomplete="new-password"
+            aria-describedby="nc-password-hint"
+            [attr.aria-invalid]="authFailed()"
+            [placeholder]="passwordSaved() ? 'Enter a new one to replace it' : ''"
+            [value]="appPassword()"
+            (input)="edit('appPassword', $event)"
+          />
+          <p id="nc-password-hint" class="pf-field__hint">
+            Create one in Nextcloud under Settings → Security → Devices &amp; sessions. It is not shown again after saving.
+          </p>
+        </div>
+
+        <div class="pf-field">
+          <label class="pf-field__label" for="nc-folder">Remote folder</label>
+          <input
+            id="nc-folder"
+            class="pf-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="nc-folder-hint"
+            [value]="remoteFolder()"
+            (input)="edit('remoteFolder', $event)"
+          />
+          <p id="nc-folder-hint" class="pf-field__hint">Photos are saved as {{ remotePreview() }}</p>
+        </div>
+
+        <div class="pf-grid-2">
+          <button type="button" class="pf-button pf-button--secondary" [disabled]="connectionBusy()" (click)="testConnection()">
+            Test connection
+          </button>
+          <button type="submit" class="pf-button pf-button--primary" [disabled]="connectionBusy()">Save</button>
+        </div>
+
+        @if (web) {
+          <p class="pf-field__hint">
+            In the browser the app password stays in this session only. Running the app locally lets this computer reach a
+            Nextcloud on your network.
+          </p>
+        }
+      </form>
+    </section>
+
+    <section class="pf-section" aria-labelledby="safety-title">
+      <h2 id="safety-title" class="pf-section__title">Backup and deletion</h2>
+      <div class="pf-card">
+        <div class="pf-switch-row">
+          <div class="pf-switch-row__text">
+            <span id="bbd-label" class="pf-title">Backup before delete</span>
+            @if (backupBeforeDelete()) {
+              <p id="bbd-hint" class="pf-body-muted">
+                Marked photos are uploaded first. If Nextcloud can’t be reached, they stay on this device.
+              </p>
+            } @else {
+              <p id="bbd-hint" class="pf-body-muted bbd-off">Local delete will not keep a backup.</p>
+            }
+          </div>
+          <button
+            type="button"
+            class="pf-switch"
+            role="switch"
+            aria-labelledby="bbd-label"
+            aria-describedby="bbd-hint"
+            [attr.aria-checked]="backupBeforeDelete()"
+            (click)="toggleBackupBeforeDelete()"
+          ></button>
+        </div>
+
+        <div class="pf-divider"></div>
+
+        <div class="pf-switch-row pf-switch-row--center">
+          <div class="pf-switch-row__text">
+            <span id="concurrency-label" class="pf-title">Uploads at a time</span>
+            <p class="pf-body-muted">{{ web ? 'Uploads run while this tab is open' : 'Keeps running after the app closes' }}</p>
+          </div>
+          <div class="pf-segmented" role="group" aria-labelledby="concurrency-label">
+            @for (option of concurrencyOptions; track option) {
+              <button type="button" [attr.aria-pressed]="concurrency() === option" (click)="setConcurrency(option)">
+                {{ option }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pf-section" aria-labelledby="access-title">
+      <h2 id="access-title" class="pf-section__title">{{ web ? 'Photo folder' : 'Photo access' }}</h2>
+      <div class="pf-card">
+        <div class="pf-card__head">
+          <span class="pf-icon-tile"><app-icon name="image" /></span>
+          <span class="pf-title access-label">{{ accessLabel() }}</span>
+          <span class="pf-pill" [class.pf-pill--ok]="access() === 'granted'" [class.pf-pill--warn]="access() === 'denied'">
+            <span class="pf-dot" [class.pf-dot--idle]="access() === 'limited'" [class.pf-dot--delete]="access() === 'denied'"></span>
+            {{ accessPill() }}
+          </span>
+        </div>
+        @if (web) {
+          <p class="pf-body-muted">
+            PhotoFlow reads only the folder you choose. Chrome and Edge can delete a photo from it; other browsers leave the
+            file in place.
+          </p>
+          <button type="button" class="pf-button pf-button--secondary" (click)="allowAccess()">Choose photo folder</button>
+        } @else {
+          <p class="pf-body-muted">
+            PhotoFlow reads photos through Android MediaStore. It only asks when you scan, and never opens the original file
+            until upload.
+          </p>
+          @if (access() !== 'granted') {
+            <button type="button" class="pf-button pf-button--primary" (click)="allowAccess()">Allow photo access</button>
+          }
+          <button type="button" class="pf-button pf-button--secondary" (click)="openSystemSettings()">Open system settings</button>
+        }
+        @if (accessFeedback(); as feedback) {
+          <p class="pf-feedback" role="status" [class.pf-feedback--error]="feedback.error">{{ feedback.text }}</p>
+        }
+      </div>
+    </section>
+
+    <section class="pf-section" aria-labelledby="library-title">
+      <h2 id="library-title" class="pf-section__title">Library</h2>
+      <div class="pf-list">
+        <button type="button" class="pf-list-row" [disabled]="libraryBusy()" (click)="rescan()">
+          <app-icon name="refresh" />
+          <span class="pf-list-row__text">
+            <span class="pf-list-row__title">Rescan photos</span>
+            <span class="pf-caption">Finds new photos, keeps earlier decisions</span>
+          </span>
+          <app-icon class="pf-list-row__chevron" name="chevron-right" [size]="18" [stroke]="2" />
+        </button>
+        <button type="button" class="pf-list-row" [disabled]="libraryBusy()" (click)="clearCache()">
+          <app-icon name="trash" />
+          <span class="pf-list-row__text">
+            <span class="pf-list-row__title">Clear thumbnail cache</span>
+            <span class="pf-caption">Previews are made again when needed</span>
+          </span>
+          <app-icon class="pf-list-row__chevron" name="chevron-right" [size]="18" [stroke]="2" />
+        </button>
+      </div>
+      @if (libraryBusy()) {
+        <p class="pf-feedback" role="status">Working…</p>
+      } @else if (libraryFeedback(); as feedback) {
+        <p class="pf-feedback" role="status" [class.pf-feedback--error]="feedback.error">{{ feedback.text }}</p>
+      }
+    </section>
+
+    <section class="pf-section" aria-labelledby="about-title">
+      <h2 id="about-title" class="pf-section__title">About</h2>
+      <div class="pf-card pf-card--compact">
+        <div class="pf-meta-row"><span>App version</span><strong>{{ appVersion }}</strong></div>
+        <div class="pf-meta-row"><span>Database version</span><strong>{{ databaseVersion() }}</strong></div>
+        <p class="pf-caption">Reviewing works offline. Kept photos upload when the server can be reached.</p>
+      </div>
+    </section>
+  </div>
+</ion-content>

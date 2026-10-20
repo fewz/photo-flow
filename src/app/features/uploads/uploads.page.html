@@ -1,0 +1,193 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <div class="uploads-bar">
+      <div>
+        <h1 class="pf-screen-title">Uploads</h1>
+        <p class="pf-screen-subtitle">{{ settings() ? 'To ' + target() : 'Nextcloud is not set up' }}</p>
+      </div>
+      @if (!online()) {
+        <span class="pf-chip pf-chip--dark" role="status">
+          <app-icon name="wifi-off" [size]="16" [stroke]="2" />
+          Offline
+        </span>
+      }
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="pf-content">
+  @if (loaded()) {
+    <div class="pf-stack">
+      @if (!settings()) {
+        <div class="pf-notice pf-notice--error setup-notice" role="status">
+          <app-icon name="alert" [size]="18" [stroke]="2.2" />
+          <span class="setup-notice__text">Add your Nextcloud server so kept photos can be backed up.</span>
+          <button type="button" class="pf-button pf-button--quiet pf-button--small" (click)="open('/settings')">Set up</button>
+        </div>
+      }
+
+      <section class="pf-hero" aria-labelledby="progress-title">
+        <div class="hero-top">
+          <div class="hero-intro">
+            <h2 id="progress-title" class="pf-hero__eyebrow">{{ stateLabel() }}</h2>
+            <p class="hero-amount">
+              <span class="pf-display">{{ format(left()) }}</span>
+              <span class="pf-hero__sub">{{ left() === 1 ? 'photo' : 'photos' }} left</span>
+            </p>
+          </div>
+          @if (counts().kept) {
+            <span class="hero-percent">{{ percent() }}%</span>
+          }
+        </div>
+        @if (counts().kept) {
+          <div>
+            <div
+              class="pf-progress pf-progress--dark"
+              role="progressbar"
+              aria-label="Kept photos backed up"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuenow]="percent()"
+            >
+              <div class="pf-progress__fill" [style.width.%]="percent()"></div>
+            </div>
+            <p class="pf-hero__sub hero-summary">
+              {{ format(counts().backedUp) }} of {{ format(counts().kept) }} kept photos backed up
+            </p>
+          </div>
+        } @else {
+          <p class="pf-hero__sub">Photos you keep while reviewing, or back up from the gallery, show up here.</p>
+        }
+        <div class="pf-grid-2">
+          <button
+            type="button"
+            class="pf-button"
+            [class.pf-button--primary]="paused()"
+            [class.hero-button]="!paused()"
+            [disabled]="busy()"
+            (click)="togglePause()"
+          >
+            <app-icon [name]="paused() ? 'arrow-right' : 'pause-circle'" [size]="18" [stroke]="2.2" />
+            {{ paused() ? 'Resume' : 'Pause' }}
+          </button>
+          <button
+            type="button"
+            class="pf-button hero-button hero-button--outline"
+            [disabled]="busy() || failed().length === 0"
+            (click)="retryFailed()"
+          >
+            <app-icon name="refresh" [size]="18" [stroke]="2.2" />
+            Retry failed
+          </button>
+        </div>
+        @if (!online()) {
+          <p class="pf-hero__sub">Uploads resume on their own when the network is back. Reviewing still works offline.</p>
+        }
+      </section>
+
+      @if (message()) {
+        <p class="pf-feedback pf-feedback--error" role="status">{{ message() }}</p>
+      }
+
+      @if (uploading().length) {
+        <section class="pf-section" aria-labelledby="uploading-title">
+          <h2 id="uploading-title" class="pf-section__title">Uploading <span class="count">· {{ uploading().length }}</span></h2>
+          <ul class="job-list">
+            @for (row of uploading(); track row.job.id) {
+              <li class="job">
+                <app-photo-thumb class="job__thumb" [uri]="row.uri" />
+                <div class="job__body">
+                  <div class="job__line">
+                    <span class="job__name">{{ row.name }}</span>
+                    <span class="job__percent">{{ row.percent }}%</span>
+                  </div>
+                  <div
+                    class="pf-progress job__progress"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-label]="row.name + ' upload'"
+                    [attr.aria-valuenow]="row.percent"
+                  >
+                    <div class="pf-progress__fill" [style.width.%]="row.percent"></div>
+                  </div>
+                  <span class="pf-caption">{{ row.meta }}</span>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (failed().length) {
+        <section class="pf-section" aria-labelledby="failed-title">
+          <h2 id="failed-title" class="pf-section__title">Needs attention <span class="count">· {{ failed().length }}</span></h2>
+          <ul class="job-list job-list--failed">
+            @for (row of failed(); track row.job.id) {
+              <li class="job">
+                <app-photo-thumb class="job__thumb" [uri]="row.uri" />
+                <div class="job__body">
+                  <span class="job__name">{{ row.name }}</span>
+                  <span class="job__error">
+                    <app-icon name="alert" [size]="14" [stroke]="2.2" />
+                    {{ row.job.error || 'Upload failed' }}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="pf-button pf-button--quiet pf-button--small"
+                  [attr.aria-label]="'Retry upload of ' + row.name"
+                  [disabled]="busy()"
+                  (click)="retry(row)"
+                >
+                  Retry
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (waitingTotal()) {
+        <section class="pf-section" aria-labelledby="waiting-title">
+          <h2 id="waiting-title" class="pf-section__title">Waiting <span class="count">· {{ format(waitingTotal()) }}</span></h2>
+          <ul class="job-list">
+            @for (row of waiting(); track row.job.id) {
+              <li class="job job--compact">
+                <app-photo-thumb class="job__thumb" [uri]="row.uri" />
+                <div class="job__body">
+                  <span class="job__name">{{ row.name }}</span>
+                  <span class="pf-caption">{{ row.meta }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="job__cancel"
+                  [attr.aria-label]="'Cancel upload of ' + row.name"
+                  [disabled]="busy()"
+                  (click)="cancel(row)"
+                >
+                  <app-icon name="close" [size]="18" [stroke]="2" />
+                </button>
+              </li>
+            }
+            @if (waitingTotal() > waiting().length) {
+              <li class="job-more">+ {{ format(waitingTotal() - waiting().length) }} more</li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (counts().backedUp || uploadedJobs()) {
+        <div class="done-row">
+          <span class="done-row__text">
+            <span class="pf-icon-tile pf-icon-tile--fact pf-icon-tile--success"><app-icon name="check" [size]="15" [stroke]="2.8" /></span>
+            {{ format(counts().backedUp) }} backed up
+          </span>
+          @if (uploadedJobs()) {
+            <button type="button" class="pf-link" [disabled]="busy()" (click)="clearCompleted()">Clear completed</button>
+          }
+        </div>
+      }
+    </div>
+  }
+</ion-content>

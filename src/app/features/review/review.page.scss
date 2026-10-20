@@ -1,0 +1,40 @@
+.review-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.review-progress {
+  height: 4px;
+  margin: 0 var(--pf-gutter) 4px;
+  border-radius: 999px;
+  background: var(--pf-line);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--pf-ink);
+    transition: width 0.3s ease;
+  }
+}
+
+.review-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 12px;
+}
+
+.review-error {
+  margin-top: 8px;
+}
+
+.review-caption {
+  margin: 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pf-ink-muted);
+  text-align: center;
+}

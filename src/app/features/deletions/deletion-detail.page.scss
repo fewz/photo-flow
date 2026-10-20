@@ -1,0 +1,38 @@
+.detail-photo {
+  appearance: none;
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+  overflow: hidden;
+  height: min(56vh, 480px);
+  border-radius: var(--pf-radius-hero);
+  background: var(--pf-tint);
+}
+
+.detail-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(21, 23, 28, 0.6);
+  color: #ffffff;
+}
+
+.detail-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  word-break: break-word;
+}
+
+.detail-hint {
+  text-align: center;
+}

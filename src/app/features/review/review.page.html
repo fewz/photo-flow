@@ -1,0 +1,97 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text="" aria-label="Back to home" />
+    </ion-buttons>
+    <div class="review-heading">
+      <h1 class="pf-screen-title pf-screen-title--small">Review</h1>
+      <span class="pf-caption" aria-live="polite">{{ format(remaining()) }} left · {{ percentDone() }}% done</span>
+    </div>
+  </ion-toolbar>
+  <div
+    class="review-progress"
+    role="progressbar"
+    aria-label="Reviewed photos"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="percentDone()"
+  >
+    <span [style.width.%]="percentDone()"></span>
+  </div>
+</ion-header>
+
+<ion-content class="pf-content">
+  @if (error()) {
+    <div class="pf-notice pf-notice--error review-error" role="alert">
+      <app-icon name="alert" [size]="18" [stroke]="2.2" />
+      <span><strong>Not saved.</strong> {{ error() }}</span>
+    </div>
+  }
+
+  @if (current(); as photo) {
+    <div class="review-layout">
+      <app-swipe-card
+        [photo]="photo"
+        [previewUrl]="previewUrl()"
+        (decision)="choose($event)"
+        (opened)="viewing.set(true)"
+      />
+
+      <p class="review-caption">Swipe left to mark for deletion, right to keep and back up. Nothing is deleted yet.</p>
+
+      <div class="pf-decisions">
+        <button
+          type="button"
+          class="pf-decision pf-decision--delete"
+          aria-label="Mark photo for deletion"
+          [disabled]="busy()"
+          (click)="choose('delete')"
+        >
+          <span class="pf-decision__circle"><app-icon name="close" [size]="28" [stroke]="2.4" /></span>
+          Delete
+        </button>
+        <button
+          type="button"
+          class="pf-decision pf-decision--undo"
+          aria-label="Undo last decision"
+          [disabled]="busy() || !canUndo()"
+          (click)="undo()"
+        >
+          <span class="pf-decision__circle"><app-icon name="undo" [size]="22" [stroke]="2.2" /></span>
+          Undo
+        </button>
+        <button
+          type="button"
+          class="pf-decision pf-decision--keep"
+          aria-label="Keep photo"
+          [disabled]="busy()"
+          (click)="choose('keep')"
+        >
+          <span class="pf-decision__circle"><app-icon name="check" [size]="30" [stroke]="2.6" /></span>
+          Keep
+        </button>
+      </div>
+    </div>
+  } @else if (loaded()) {
+    <section class="pf-empty" aria-labelledby="review-done-title">
+      <span class="pf-icon-tile pf-icon-tile--large pf-icon-tile--keep"><app-icon name="check" [size]="30" [stroke]="2.4" /></span>
+      <h2 id="review-done-title" class="pf-empty__title">All caught up</h2>
+      <p class="pf-body-muted">There are no photos left to review. Scan again if you added new ones.</p>
+      @if (marked()) {
+        <button type="button" class="pf-button pf-button--destructive" (click)="open('/deletions')">
+          Review {{ format(marked()) }} marked for deletion
+        </button>
+      }
+      @if (canUndo()) {
+        <button type="button" class="pf-button pf-button--secondary" [disabled]="busy()" (click)="undo()">
+          <app-icon name="undo" [size]="18" [stroke]="2.2" />
+          Undo last decision
+        </button>
+      }
+    </section>
+  }
+</ion-content>
+
+@if (viewing() && current(); as photo) {
+  <app-photo-viewer [src]="previewUrl()" [fileName]="photo.fileName" (closed)="viewing.set(false)" />
+}

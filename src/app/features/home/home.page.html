@@ -1,0 +1,208 @@
+<ion-header class="pf-header">
+  <ion-toolbar class="pf-toolbar">
+    <div class="home-bar">
+      <div class="pf-brand">
+        <span class="pf-brand__mark"><app-icon name="logo" /></span>
+        PhotoFlow
+      </div>
+      @if (!online()) {
+        <span class="pf-chip pf-chip--dark" role="status">
+          <app-icon name="wifi-off" [size]="16" [stroke]="2" />
+          Offline
+        </span>
+      } @else if (nextcloud()) {
+        <button type="button" class="pf-chip" aria-label="Nextcloud backup is set up. Open settings" (click)="open('/settings')">
+          <span class="pf-dot"></span>
+          Nextcloud
+        </button>
+      } @else {
+        <button type="button" class="pf-chip" (click)="open('/settings')">
+          <span class="pf-dot pf-dot--idle"></span>
+          Set up backup
+        </button>
+      }
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="pf-content">
+  <div class="pf-stack">
+    @if (error()) {
+      <div class="pf-notice pf-notice--error" role="alert">
+        <app-icon name="alert" [size]="18" [stroke]="2.2" />
+        <div class="error-body">
+          <strong>Scan stopped</strong>
+          <span>{{ error() }}</span>
+          <button type="button" class="pf-link" (click)="openSettings()">Open settings</button>
+        </div>
+      </div>
+    }
+
+    <section class="pf-hero" aria-labelledby="review-title">
+      @if (counts().total === 0) {
+        <div class="hero-intro">
+          <h2 id="review-title" class="pf-hero__eyebrow">Get started</h2>
+          <p class="pf-hero__headline">No photos yet</p>
+          <p class="pf-hero__sub">{{ emptyMessage() }}</p>
+        </div>
+        <button type="button" class="pf-button pf-button--primary pf-button--large" [disabled]="scanning()" (click)="scan()">
+          {{ scanLabel() }}
+        </button>
+      } @else {
+        <div class="hero-top">
+          <div class="hero-intro">
+            @if (counts().pending) {
+              <h2 id="review-title" class="pf-hero__eyebrow">Waiting for review</h2>
+              <p class="pf-display">{{ format(counts().pending) }}</p>
+              <p class="pf-hero__sub">photos left to sort</p>
+            } @else {
+              <h2 id="review-title" class="pf-hero__eyebrow">All caught up</h2>
+              <p class="pf-hero__headline">Nothing left</p>
+              <p class="pf-hero__sub">Every photo has a decision.</p>
+            }
+          </div>
+          <div class="hero-stack" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span class="hero-stack__photo">
+              <svg width="72" height="88" viewBox="0 0 72 88">
+                <circle cx="50" cy="24" r="8" fill="#F2C46D"></circle>
+                <path d="M0 70 L22 42 L38 60 L50 48 L72 72 L72 88 L0 88 Z" fill="#5E7391"></path>
+                <path d="M0 78 L28 58 L46 76 L72 66 L72 88 L0 88 Z" fill="#3E5070"></path>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <div class="pf-progress-label pf-progress-label--dark">
+            <span>{{ format(counts().reviewed) }} of {{ format(counts().total) }} reviewed</span>
+            <strong>{{ reviewPercent() }}%</strong>
+          </div>
+          <div
+            class="pf-progress pf-progress--dark"
+            role="progressbar"
+            aria-label="Reviewed photos"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuenow]="reviewPercent()"
+          >
+            <div class="pf-progress__fill" [style.width.%]="reviewPercent()"></div>
+          </div>
+        </div>
+
+        @if (counts().pending) {
+          <div class="pf-swipe-legend">
+            <div class="pf-swipe-legend__item">
+              <app-icon name="arrow-left" [size]="18" [stroke]="2" />
+              <span><small>Swipe left</small><strong>Delete</strong></span>
+            </div>
+            <div class="pf-swipe-legend__item pf-swipe-legend__item--keep">
+              <span><small>Swipe right</small><strong>Keep</strong></span>
+              <app-icon name="arrow-right" [size]="18" [stroke]="2" />
+            </div>
+          </div>
+          <button type="button" class="pf-button pf-button--primary pf-button--large" (click)="open('/review')">
+            Start reviewing
+            <app-icon name="arrow-right" [size]="18" [stroke]="2.2" />
+          </button>
+        }
+      }
+    </section>
+
+    <section class="pf-card" aria-labelledby="backup-title">
+      <div class="pf-card__head">
+        <span class="pf-icon-tile pf-icon-tile--keep"><app-icon name="cloud-upload" [size]="22" /></span>
+        <div class="pf-card__titles">
+          <h2 id="backup-title" class="pf-title">Nextcloud backup</h2>
+          <p class="pf-caption">{{ nextcloud() ? serverLabel() : 'Not set up yet' }}</p>
+        </div>
+        @if (nextcloud() && counts().kept) {
+          <span class="backup-percent">{{ backupPercent() }}%</span>
+        }
+      </div>
+
+      @if (nextcloud()) {
+        @if (counts().kept) {
+          <div
+            class="pf-progress"
+            role="progressbar"
+            aria-label="Kept photos backed up"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuenow]="backupPercent()"
+          >
+            <div class="pf-progress__fill" [style.width.%]="backupPercent()"></div>
+          </div>
+          <p class="pf-body-muted">
+            {{ format(counts().backedUp) }} of {{ format(counts().kept) }} kept photos are backed up
+          </p>
+        } @else {
+          <p class="pf-body-muted">Photos you keep are backed up here.</p>
+        }
+
+        @if (online()) {
+          <div class="pf-card__footer">
+            <span class="queue-status">
+              <span class="pf-dot" [class.pf-dot--keep]="queueTone() === 'keep'" [class.pf-dot--delete]="queueTone() === 'delete'" [class.pf-dot--idle]="queueTone() === 'idle'"></span>
+              {{ queueLabel() }}
+            </span>
+            <button type="button" class="pf-link" (click)="open('/uploads')">
+              Upload queue
+              <app-icon name="chevron-right" [size]="16" [stroke]="2.2" />
+            </button>
+          </div>
+        } @else {
+          <div class="pf-notice">
+            <app-icon name="pause-circle" [size]="18" [stroke]="2" />
+            Uploads pause while offline. You can keep reviewing; the queue resumes on reconnect.
+          </div>
+        }
+      } @else {
+        <p class="pf-body-muted">Add your server so the photos you keep are backed up.</p>
+        <button type="button" class="pf-button pf-button--secondary" (click)="open('/settings')">Set up Nextcloud</button>
+      }
+    </section>
+
+    <div class="pf-grid-2">
+      <section class="pf-card pf-card--compact" aria-labelledby="free-title">
+        <span class="pf-icon-tile pf-icon-tile--small pf-icon-tile--delete"><app-icon name="trash" /></span>
+        <div>
+          <h2 id="free-title" class="pf-label">Storage to free</h2>
+          <p class="pf-stat">{{ formatStorage(counts().recoverableBytes) }}</p>
+          <p class="pf-caption">{{ format(counts().markedForDeletion) }} marked for deletion</p>
+        </div>
+        <button type="button" class="pf-button pf-button--destructive pf-button--small pf-card__action" (click)="open('/deletions')">
+          Review deletions
+        </button>
+      </section>
+
+      <section class="pf-card pf-card--compact" aria-labelledby="dup-title">
+        <span class="pf-icon-tile pf-icon-tile--small"><app-icon name="copy" /></span>
+        <div>
+          <h2 id="dup-title" class="pf-label">Duplicates</h2>
+          <p class="pf-stat">{{ format(counts().duplicatePhotos) }}</p>
+          <p class="pf-caption">same size and date</p>
+        </div>
+        <button type="button" class="pf-button pf-button--quiet pf-button--small pf-card__action" (click)="open('/gallery?filter=duplicates')">
+          View in gallery
+        </button>
+      </section>
+    </div>
+
+    @if (counts().total > 0) {
+      <button type="button" class="pf-row-button" [disabled]="scanning()" (click)="scan()">
+        <app-icon name="refresh" [size]="22" />
+        <span class="pf-row-button__text">
+          <span class="pf-row-button__title">{{ rescanLabel() }}</span>
+          <span class="pf-caption">{{ format(counts().total) }} photos {{ web ? 'in this folder' : 'on this device' }}</span>
+        </span>
+        <app-icon class="row-chevron" name="chevron-right" [size]="18" [stroke]="2" />
+      </button>
+    }
+
+    @if (access() === 'limited') {
+      <p class="pf-body-muted">Only the photos you selected are visible. PhotoFlow will not treat the rest as deleted.</p>
+    }
+  </div>
+</ion-content>

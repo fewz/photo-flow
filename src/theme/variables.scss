@@ -1,0 +1,87 @@
+// PhotoFlow design tokens. The values and their usage are documented on the
+// "Design rules" board of the PhotoFlow design canvas.
+// For Ionic theming, see https://ionicframework.com/docs/theming/
+
+:root {
+  // Neutrals
+  --pf-paper: #f4f3ef;
+  --pf-surface: #ffffff;
+  --pf-input: #f7f6f2;
+  --pf-tint: #efede7;
+  --pf-line: #e2e0d9;
+  --pf-divider: #eceae4;
+
+  // Ink and dark surfaces
+  --pf-ink: #15171c;
+  --pf-ink-muted: #5b6070;
+  --pf-ink-soft: #3d4250;
+  --pf-night-2: #2c3039;
+  --pf-ink-on-dark: #a9afbd;
+  --pf-ink-on-dark-soft: #c9cdd6;
+
+  // Keep / primary action
+  --pf-keep: #2f5bea;
+  --pf-keep-soft: #eef2fd;
+  --pf-keep-on-dark: #b9cbff;
+
+  // Delete / error / warning
+  --pf-delete: #b8430f;
+  --pf-delete-soft: #fbede5;
+  --pf-delete-line: #ebc9b6;
+  --pf-delete-wash: #fdf6f2;
+  --pf-delete-on-dark: #ffb089;
+
+  // Success / connection
+  --pf-online: #1f9d6b;
+  --pf-success: #157a52;
+  --pf-success-soft: #e6f4ee;
+
+  // Shape and spacing
+  --pf-radius-hero: 26px;
+  --pf-radius-card: 22px;
+  --pf-radius-button: 14px;
+  --pf-radius-small: 12px;
+  --pf-gutter: 20px;
+
+  --pf-font: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  // Ionic mapping. The design is light only.
+  --ion-font-family: var(--pf-font);
+  --ion-background-color: #f4f3ef;
+  --ion-background-color-rgb: 244, 243, 239;
+  --ion-text-color: #15171c;
+  --ion-text-color-rgb: 21, 23, 28;
+  --ion-toolbar-background: #f4f3ef;
+  --ion-tab-bar-background: #ffffff;
+  --ion-tab-bar-border-color: #e2e0d9;
+  --ion-tab-bar-color: #5b6070;
+  --ion-tab-bar-color-selected: #15171c;
+
+  --ion-color-primary: #2f5bea;
+  --ion-color-primary-rgb: 47, 91, 234;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #2950ce;
+  --ion-color-primary-tint: #466bec;
+
+  --ion-color-danger: #b8430f;
+  --ion-color-danger-rgb: 184, 67, 15;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #a23b0d;
+  --ion-color-danger-tint: #bf5627;
+
+  --ion-color-success: #157a52;
+  --ion-color-success-rgb: 21, 122, 82;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #126b48;
+  --ion-color-success-tint: #2c8763;
+
+  --ion-color-medium: #5b6070;
+  --ion-color-medium-rgb: 91, 96, 112;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #505463;
+  --ion-color-medium-tint: #6b707e;
+}
