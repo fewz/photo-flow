@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.0.1';
+export const APP_VERSION = '0.1.0';
 export const DATABASE_VERSION = 4;
 export const DB_NAME = 'photoflow';
 export const GALLERY_PAGE_SIZE = 20;

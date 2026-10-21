@@ -25,7 +25,10 @@ npm run build      # outputs to www/
 npx cap sync android
 cd android; .\gradlew.bat assembleDebug   # APK: android\app\build\outputs\apk\debug\app-debug.apk
 npm run android:live   # scripts/android-live.cjs: ng serve on the LAN IP + debug APK pointed at it (USB phone)
+cd android; .\gradlew.bat assembleRelease  # signed with android\release.jks via android\keystore.properties (both gitignored)
 ```
+
+Releases: notes and the feature list live in `RELEASE.md`. Bump `package.json`, `APP_VERSION`, and `versionName` / `versionCode` (major × 10000 + minor × 100 + patch) in `android/app/build.gradle`.
 
 `cap run android` does not work in this shell (`./gradlew` under cmd.exe, and cmd here does not search the current folder), so `android-live.cjs` runs sync → gradlew.bat (full path) → `adb install` → launch itself. It writes `server.url` into `android/app/src/main/assets/capacitor.config.json`; the next `npx cap sync android` removes it again.
 
