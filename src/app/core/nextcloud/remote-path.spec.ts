@@ -19,11 +19,17 @@ describe('Nextcloud paths', () => {
     expect(() => normalizeServerUrl('999.1.1.1')).toThrowError(NextcloudConnectionError);
   });
 
-  it('places a photo in a year and month folder', () => {
+  it('places a photo in a year and English month name folder', () => {
     const path = photoRemotePath('PhotoFlow', {
       fileName: 'IMG_20261008_182301.jpg',
       dateTaken: new Date(2026, 9, 8, 18, 23, 1).getTime(),
     });
-    expect(path).toBe('PhotoFlow/2026/10/IMG_20261008_182301.jpg');
+    expect(path).toBe('PhotoFlow/2026/October/IMG_20261008_182301.jpg');
+    expect(photoRemotePath('PhotoFlow', { fileName: 'a.jpg', dateTaken: new Date(2026, 0, 1).getTime() })).toBe(
+      'PhotoFlow/2026/January/a.jpg',
+    );
+    expect(photoRemotePath('PhotoFlow', { fileName: 'b.jpg', dateTaken: new Date(2026, 11, 31).getTime() })).toBe(
+      'PhotoFlow/2026/December/b.jpg',
+    );
   });
 });

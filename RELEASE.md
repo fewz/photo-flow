@@ -17,7 +17,7 @@ Release notes, newest first, plus the list of what the app can do. Add a section
 | Gallery | Filters (All, To review, Kept, Delete, Duplicates), day sections, 3 or 4 columns | 0.1.0 |
 | Gallery | Hold to select, Select all for the active filter, Back up a selection | 0.1.0 |
 | Duplicates | Hints for photos with the same size and modified time | 0.1.0 |
-| Backup | Kept photos upload to your own Nextcloud over WebDAV into `PhotoFlow/YYYY/MM/` | 0.1.0 |
+| Backup | Kept photos upload to your own Nextcloud over WebDAV into `PhotoFlow/YYYY/Month/` (e.g. `2026/March`; earlier uploads used `YYYY/MM`) | 0.1.0 |
 | Backup | Background uploads (WorkManager), 1 or 2 at a time, pause while offline and resume on reconnect | 0.1.0 |
 | Backup | Uploads screen: progress, pause/resume, retry failed, cancel waiting, clear completed | 0.1.0 |
 | Deletion | Nothing is deleted by a swipe; Review deletions screen with put back, select and delete all | 0.1.0 |
@@ -25,6 +25,17 @@ Release notes, newest first, plus the list of what the app can do. Add a section
 | Deletion | Backup before delete (on by default): a photo without a verified backup is uploaded first and kept if that fails | 0.1.0 |
 | Security | Nextcloud app password stored in Android encrypted storage, never logged; warning for plain `http://` | 0.1.0 |
 | Settings | Server setup with connection test, remote folder, uploads at a time, clear thumbnail cache | 0.1.0 |
+
+## Unreleased
+
+### Changed
+
+- New uploads go to month-name folders, `PhotoFlow/2026/March/` instead of `PhotoFlow/2026/03/`. Photos already on the server stay where they are.
+
+### Fixed
+
+- Uploads stopped running: the background upload worker opened the library database with Android's own SQLite while the app used SQLCipher, and closing the worker's connection deleted the app's write-ahead log. Both now use SQLCipher, so the worker sees new jobs and the app's changes stay on disk.
+- Uploads that failed while the server or app password was missing are retried when the Nextcloud settings are saved again.
 
 ## 0.1.0 (2026-10-21)
 

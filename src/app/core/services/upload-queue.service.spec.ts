@@ -80,7 +80,7 @@ describe('UploadQueueService', () => {
 
     expect((await repository.findByMediaStoreId('1'))?.uploadStatus).toBe('uploaded');
     expect((await repository.findByMediaStoreId('1'))?.remoteETag).toBe('etag-1');
-    expect(cloud.uploads).toEqual(['PhotoFlow/2026/10/Fixture_001.jpg']);
+    expect(cloud.uploads).toEqual(['PhotoFlow/2026/October/Fixture_001.jpg']);
   });
 
   it('keeps the pending job and does not upload while offline', async () => {
@@ -223,6 +223,21 @@ describe('UploadQueueService', () => {
     } finally {
       console.warn = original;
     }
+  });
+
+  it('uploads into month-name folders and moves queued jobs off the old numeric layout', async () => {
+    online = false;
+    const photo = await repository.findByMediaStoreId('1');
+    await review.decide(photo!.id, 'keep');
+    const [job] = await repository.listJobs();
+    expect(job?.remotePath).toBe('PhotoFlow/2026/October/Fixture_001.jpg');
+    // A job queued by a version that still used `YYYY/MM`.
+    await repository.updateJob({ ...job!, remotePath: 'PhotoFlow/2026/10/Fixture_001.jpg' });
+
+    online = true;
+    await queue.recoverAndResume();
+
+    expect(cloud.uploads).toEqual(['PhotoFlow/2026/October/Fixture_001.jpg']);
   });
 });
 

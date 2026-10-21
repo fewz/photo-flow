@@ -1,6 +1,7 @@
 package app.photoflow.upload
 
-import android.database.sqlite.SQLiteDatabase
+import net.zetetic.database.sqlcipher.SQLiteDatabase
+import net.zetetic.database.sqlcipher.SQLiteDatabaseHook
 import java.io.File
 
 class UploadDatabase private constructor(private val db: SQLiteDatabase) {
@@ -33,7 +34,7 @@ class UploadDatabase private constructor(private val db: SQLiteDatabase) {
 
     fun hasPending(): Boolean {
         synchronized(db) {
-            db.rawQuery("SELECT id FROM upload_jobs WHERE status = 'pending' LIMIT 1", null).use { cursor ->
+            db.rawQuery("SELECT id FROM upload_jobs WHERE status = 'pending' LIMIT 1", NO_ARGS).use { cursor ->
                 return cursor.moveToFirst()
             }
         }
@@ -53,7 +54,7 @@ class UploadDatabase private constructor(private val db: SQLiteDatabase) {
                 ORDER BY created_at ASC
                 LIMIT $cap
                 """.trimIndent(),
-                null,
+                NO_ARGS,
             ).use { cursor ->
                 while (cursor.moveToNext()) {
                     pending.add(
@@ -111,7 +112,7 @@ class UploadDatabase private constructor(private val db: SQLiteDatabase) {
         synchronized(db) {
             db.rawQuery(
                 "SELECT server_url, username FROM nextcloud_config WHERE id = 'default' AND enabled = 1",
-                null,
+                NO_ARGS,
             ).use { cursor ->
                 if (!cursor.moveToFirst()) {
                     return null
@@ -251,7 +252,7 @@ class UploadDatabase private constructor(private val db: SQLiteDatabase) {
     }
 
     private fun changed(): Boolean {
-        db.rawQuery("SELECT changes()", null).use { cursor ->
+        db.rawQuery("SELECT changes()", NO_ARGS).use { cursor ->
             return cursor.moveToFirst() && cursor.getLong(0) > 0
         }
     }
@@ -265,14 +266,32 @@ class UploadDatabase private constructor(private val db: SQLiteDatabase) {
     }
 
     companion object {
+        private val NO_ARGS = emptyArray<String>()
+
+        /**
+         * Opens the app's library database with SQLCipher, the same SQLite build the
+         * @capacitor-community/sqlite plugin uses for its connection to this file.
+         *
+         * It must not be Android's own android.database.sqlite: two SQLite copies in one process
+         * do not see each other's locks, so closing this connection deleted the WAL file the
+         * plugin was still writing to. The worker then read stale rows (no pending jobs) and the
+         * app's own writes were stranded in the deleted WAL.
+         */
         fun open(file: File): UploadDatabase {
-            val database = SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READWRITE)
+            System.loadLibrary("sqlcipher")
+            val database = SQLiteDatabase.openDatabase(
+                file.absolutePath,
+                "",
+                null,
+                SQLiteDatabase.OPEN_READWRITE,
+                null as SQLiteDatabaseHook?,
+            )
             try {
                 database.enableWriteAheadLogging()
             } catch (_: Exception) {
                 // The open library connection may already own the journal mode.
             }
-            database.rawQuery("PRAGMA busy_timeout = 5000", null).close()
+            database.rawQuery("PRAGMA busy_timeout = 5000", NO_ARGS).close()
             return UploadDatabase(database)
         }
     }

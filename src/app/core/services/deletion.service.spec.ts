@@ -128,7 +128,7 @@ describe('DeletionService', () => {
     const report = await deletion.deleteMarked([photo.id]);
 
     expect(report.message).toBe('Deleted 1 photo.');
-    expect(cloud.uploads).toEqual(['PhotoFlow/2026/10/Fixture_001.jpg']);
+    expect(cloud.uploads).toEqual(['PhotoFlow/2026/October/Fixture_001.jpg']);
     expect(deleter.calls).toHaveLength(1);
     expect(await repository.findByMediaStoreId('1')).toMatchObject({ mediaMissing: true });
   });

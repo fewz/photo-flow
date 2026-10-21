@@ -180,6 +180,7 @@ export class UploadQueueService {
 
   async recoverAndResume(): Promise<void> {
     await this.photos.resetUploadingJobs();
+    await this.refreshPendingPaths();
     await this.process();
   }
 
@@ -358,9 +359,28 @@ export class UploadQueueService {
     }
   }
 
-  private async enqueue(photo: Photo): Promise<void> {
+  /**
+   * Jobs queued by an older version keep the folder layout they were created with
+   * (`2026/03` before month names). Point the ones that have not started at today's layout.
+   */
+  private async refreshPendingPaths(): Promise<void> {
+    const pending = (await this.photos.listJobs()).filter((job) => job.status === 'pending');
+    for (const job of pending) {
+      const photo = await this.photos.getById(job.photoId);
+      const remotePath = photo ? await this.remotePathFor(photo) : job.remotePath;
+      if (remotePath !== job.remotePath) {
+        await this.photos.updateJob({ ...job, remotePath, updatedAt: Date.now() });
+      }
+    }
+  }
+
+  private async remotePathFor(photo: Photo): Promise<string> {
     const settings = await this.photos.getNextcloudSettings();
-    const remotePath = photoRemotePath(settings?.baseRemotePath ?? 'PhotoFlow', photo);
+    return photoRemotePath(settings?.baseRemotePath ?? 'PhotoFlow', photo);
+  }
+
+  private async enqueue(photo: Photo): Promise<void> {
+    const remotePath = await this.remotePathFor(photo);
     const existing = await this.photos.findJobForPhoto(photo.id);
     const now = Date.now();
     if (existing && (existing.status === 'pending' || existing.status === 'uploading')) {
@@ -399,14 +419,15 @@ export class UploadQueueService {
 
   private async requeue(job: UploadJob): Promise<void> {
     const now = Date.now();
+    const photo = await this.photos.getById(job.photoId);
     await this.photos.updateJob({
       ...job,
+      remotePath: photo ? await this.remotePathFor(photo) : job.remotePath,
       status: 'pending',
       progress: 0,
       error: undefined,
       updatedAt: now,
     });
-    const photo = await this.photos.getById(job.photoId);
     if (photo && photo.reviewStatus === 'keep' && photo.uploadStatus !== 'uploaded') {
       await this.photos.update({
         ...photo,

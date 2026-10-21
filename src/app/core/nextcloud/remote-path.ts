@@ -1,6 +1,22 @@
 import { DEFAULT_REMOTE_FOLDER } from '../constants/app.constants';
 import { NextcloudConnectionError } from '../errors/app-error';
 
+// Fixed English names, not the device locale, so every phone writes to the same folders.
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
 const OCTET = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
 const IPV4_HOST = new RegExp(`^${OCTET}(?:\\.${OCTET}){3}$`);
 
@@ -97,11 +113,12 @@ export function sanitizeRemoteFolder(value: string | undefined): string {
   return parts.join('/');
 }
 
+/** `<folder>/<year>/<English month name>/<file>`, for example `PhotoFlow/2026/March/IMG_1.jpg`. */
 export function photoRemotePath(baseFolder: string, photo: { fileName: string; dateTaken: number }): string {
   const folder = sanitizeRemoteFolder(baseFolder);
   const when = photo.dateTaken > 0 ? new Date(photo.dateTaken) : new Date();
   const year = String(when.getFullYear());
-  const month = String(when.getMonth() + 1).padStart(2, '0');
+  const month = MONTH_NAMES[when.getMonth()];
   const name = photo.fileName.replace(/[\\/]/g, '_').replace(/\.\.+/g, '.') || 'photo.jpg';
   return `${folder}/${year}/${month}/${name}`;
 }

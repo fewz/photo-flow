@@ -22,7 +22,7 @@ There is no PhotoFlow server or account. The app talks to the phone's photo libr
 2. In PhotoFlow, open the **Settings** tab and fill in:
    - **Server URL**: for example `https://cloud.example.com` or `192.168.1.20` (a bare IP is treated as `http://`).
    - **Username** and the **App password** you just created.
-   - **Remote folder** (default `PhotoFlow`). Photos are saved as `PhotoFlow/YYYY/MM/<file name>`.
+   - **Remote folder** (default `PhotoFlow`). Photos are saved as `PhotoFlow/YYYY/Month/<file name>`, for example `PhotoFlow/2026/March/IMG_0001.jpg`.
 3. Tap **Test connection**. You should see **Connected**.
 
 The app password is kept in Android's encrypted storage and is never shown again or written to logs. If the server uses plain `http://`, the app warns you that the password can be intercepted on an untrusted network.

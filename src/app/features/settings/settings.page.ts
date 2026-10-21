@@ -256,6 +256,10 @@ export class SettingsPage implements ViewWillEnter {
     this.appPassword.set('');
     this.configured.set(true);
     this.passwordSaved.set(await this.credentials.hasAppPassword());
+    if (this.passwordSaved()) {
+      // Uploads that failed while the server or password was missing or wrong get another try.
+      await this.uploads.retryFailed();
+    }
   }
 
   private async refresh(): Promise<void> {
