@@ -1096,6 +1096,7 @@ ion-tab-button.pf-tab {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   background: #0b0c0f;
   color: #ffffff;
   animation: pf-viewer-in 0.18s ease;
@@ -1105,6 +1106,20 @@ ion-tab-button.pf-tab {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  // The viewer handles pinch and pan itself.
+  touch-action: none;
+  user-select: none;
+  transform-origin: 50% 50%;
+}
+
+.pf-viewer__image--animating {
+  transition: transform 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-viewer__image--animating {
+    transition: none;
+  }
 }
 
 .pf-viewer__empty {
