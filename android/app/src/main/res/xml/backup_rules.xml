@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and older (android:fullBackupContent).
+  Encrypted prefs are tied to an Android Keystore key that is never backed up, so a restored copy
+  cannot be decrypted. Leave them out; the user re-enters the Nextcloud app password instead.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="photoflow_secrets.xml" />
+    <exclude domain="sharedpref" path="sqlite_encrypted_shared_prefs.xml" />
+</full-backup-content>

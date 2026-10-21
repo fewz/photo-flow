@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 and newer (android:dataExtractionRules). Same rule as backup_rules.xml: encrypted prefs
+  are tied to a Keystore key that does not leave the device, so they are never backed up or moved.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="photoflow_secrets.xml" />
+        <exclude domain="sharedpref" path="sqlite_encrypted_shared_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="photoflow_secrets.xml" />
+        <exclude domain="sharedpref" path="sqlite_encrypted_shared_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>
