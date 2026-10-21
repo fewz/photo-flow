@@ -75,12 +75,14 @@ interface Tap {
           (pointercancel)="onPointerEnd($event)"
         />
       } @else {
-        <p class="pf-viewer__empty">{{ failed() ? 'The preview could not be loaded.' : 'Loading preview…' }}</p>
+        <p class="pf-viewer__empty">{{ failed() || loadFailed() ? 'The preview could not be loaded.' : 'Loading preview…' }}</p>
       }
       <p class="pf-viewer__name">{{ fileName() }}</p>
       <button #closeButton type="button" class="pf-viewer__close" aria-label="Close full screen preview" (click)="closed.emit()">
         <app-icon name="close" [size]="22" [stroke]="2.4" />
       </button>
+      <!-- Optional details under the photo, such as the Nextcloud info sheet. -->
+      <ng-content />
     </section>
   `,
   host: { class: 'pf-viewer-host' },
@@ -93,6 +95,8 @@ export class PhotoViewerComponent {
   /** Otherwise the viewer loads the cached full-screen preview for this URI (never the original). */
   readonly uri = input<string | null>(null);
   readonly fileName = input('');
+  /** Set when a preview passed in through `src` could not be loaded. */
+  readonly loadFailed = input(false);
   readonly closed = output<void>();
 
   readonly shown = computed(() => this.src() ?? this.loaded());
@@ -233,16 +237,32 @@ export class PhotoViewerComponent {
     this.gesture = { zoom: this.zoom(), points: [...this.pointers.values()] };
   }
 
+  /** Point relative to the centre of the photo's box (the whole viewer unless details sit below it). */
   private toViewer(event: PointerEvent): Point {
-    const rect = this.host.nativeElement.getBoundingClientRect();
-    return { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
+    const stage = this.stage();
+    return { x: event.clientX - stage.left - stage.width / 2, y: event.clientY - stage.top - stage.height / 2 };
   }
 
   private frame(): Frame {
-    const host = this.host.nativeElement;
-    const viewer = { width: host.clientWidth, height: host.clientHeight };
+    const stage = this.stage();
+    const viewer = { width: stage.width, height: stage.height };
     const image = this.image()?.nativeElement;
     const natural = { width: image?.naturalWidth ?? 0, height: image?.naturalHeight ?? 0 };
     return { viewer, content: containedSize(natural, viewer) };
+  }
+
+  /** The image's layout box, which zooming (a transform) does not change. */
+  private stage(): { left: number; top: number; width: number; height: number } {
+    const rect = this.host.nativeElement.getBoundingClientRect();
+    const image = this.image()?.nativeElement;
+    if (!image || !image.offsetWidth || !image.offsetHeight) {
+      return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    }
+    return {
+      left: rect.left + image.offsetLeft,
+      top: rect.top + image.offsetTop,
+      width: image.offsetWidth,
+      height: image.offsetHeight,
+    };
   }
 }

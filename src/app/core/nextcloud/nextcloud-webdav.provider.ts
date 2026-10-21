@@ -5,11 +5,12 @@ import {
   NextcloudUploadError,
 } from '../errors/app-error';
 import { NextcloudSession, RemoteFileMetadata, UploadRequest, UploadResult } from '../models/nextcloud.model';
-import { CloudStorageProvider } from './cloud-storage';
-import { parentFolders, remoteFileUrl, webDavRoot } from './remote-path';
-import { WebDavResult, WebDavTransport } from './webdav-transport';
+import { CloudLibraryProvider, CloudStorageProvider } from './cloud-storage';
+import { parseListing, RemoteEntry } from './remote-listing';
+import { parentFolders, previewUrl, remoteFileUrl, webDavRoot } from './remote-path';
+import { PreviewResult, SaveResult, WebDavResult, WebDavTransport } from './webdav-transport';
 
-export class NextcloudWebDavProvider implements CloudStorageProvider {
+export class NextcloudWebDavProvider implements CloudStorageProvider, CloudLibraryProvider {
   constructor(private readonly transport: WebDavTransport) {}
 
   async testConnection(session: NextcloudSession): Promise<void> {
@@ -89,6 +90,52 @@ export class NextcloudWebDavProvider implements CloudStorageProvider {
       path: remotePath,
       etag: result.etag,
     };
+  }
+
+  async listFolder(session: NextcloudSession, remotePath: string): Promise<RemoteEntry[] | null> {
+    const result = await this.transport.request({
+      method: 'PROPFIND',
+      url: `${remoteFileUrl(session.serverUrl, session.username, remotePath)}/`,
+      username: session.username,
+      appPassword: session.appPassword,
+      depth: '1',
+      listing: true,
+    });
+    if (result.status === 404) {
+      return null;
+    }
+    this.assertOk(result, 'connection');
+    try {
+      return parseListing(result.body ?? '', remotePath);
+    } catch {
+      throw new NextcloudConnectionError('Nextcloud sent a folder listing PhotoFlow could not read.');
+    }
+  }
+
+  preview(
+    session: NextcloudSession,
+    file: { remotePath: string; fileId?: string; etag?: string },
+    size: number,
+  ): Promise<PreviewResult> {
+    return this.transport.preview({
+      url: previewUrl(session.serverUrl, file, size),
+      username: session.username,
+      appPassword: session.appPassword,
+      cacheKey: `${session.serverUrl}|${file.remotePath}|${file.etag ?? ''}|${size}`,
+    });
+  }
+
+  saveToDevice(
+    session: NextcloudSession,
+    file: { remotePath: string; fileName: string; mimeType: string },
+  ): Promise<SaveResult> {
+    return this.transport.save({
+      url: remoteFileUrl(session.serverUrl, session.username, file.remotePath),
+      username: session.username,
+      appPassword: session.appPassword,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+    });
   }
 
   private assertOk(result: WebDavResult, kind: 'connection' | 'upload' | 'directory'): void {

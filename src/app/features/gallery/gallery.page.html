@@ -12,10 +12,16 @@
       <div class="gallery-bar">
         <div>
           <h1 class="pf-screen-title">Gallery</h1>
-          <p class="pf-screen-subtitle">{{ format(counts().total) }} photos · newest first</p>
+          @if (source() === 'phone') {
+            <p class="pf-screen-subtitle">{{ format(counts().total) }} photos · newest first</p>
+          } @else if (cloud.configured() === false) {
+            <p class="pf-screen-subtitle">Nextcloud is not set up</p>
+          } @else {
+            <p class="pf-screen-subtitle">{{ format(cloud.counts().total) }} photos in Nextcloud</p>
+          }
         </div>
         <div class="gallery-actions">
-          @if (photos().length) {
+          @if (source() === 'phone' && photos().length) {
             <button type="button" class="pf-link" (click)="enterSelection()">Select</button>
           }
           <button
@@ -30,100 +36,219 @@
       </div>
     }
   </ion-toolbar>
-  <div class="pf-filters" role="group" aria-label="Filter photos">
-    @for (chip of chips(); track chip.id) {
-      <button type="button" class="pf-filter-chip" [attr.aria-pressed]="filter() === chip.id" (click)="setFilter(chip.id)">
-        {{ chip.label }} <span>{{ format(chip.count) }}</span>
+  @if (!selecting()) {
+    <div class="pf-source" role="group" aria-label="Photo source">
+      <button type="button" class="pf-source__option" [attr.aria-pressed]="source() === 'phone'" (click)="setSource('phone')">
+        <app-icon name="phone" [size]="16" [stroke]="2" />
+        This phone
       </button>
-    }
-  </div>
-</ion-header>
-
-<ion-content class="pf-content">
-  @if (feedback(); as message) {
-    <div class="pf-notice gallery-feedback" role="status" [class.pf-notice--error]="message.error">
-      <app-icon [name]="message.error ? 'alert' : 'cloud-upload'" [size]="18" [stroke]="2" />
-      <span class="gallery-feedback__text">{{ message.text }}</span>
-      @if (message.showUploads) {
-        <button type="button" class="pf-link" (click)="open('/uploads')">View uploads</button>
+      <button type="button" class="pf-source__option" [attr.aria-pressed]="source() === 'cloud'" (click)="setSource('cloud')">
+        <app-icon name="cloud" [size]="16" [stroke]="2" />
+        Nextcloud
+      </button>
+    </div>
+  }
+  @if (source() === 'phone') {
+    <div class="pf-filters" role="group" aria-label="Filter photos">
+      @for (chip of chips(); track chip.id) {
+        <button type="button" class="pf-filter-chip" [attr.aria-pressed]="filter() === chip.id" (click)="setFilter(chip.id)">
+          {{ chip.label }} <span>{{ format(chip.count) }}</span>
+        </button>
+      }
+    </div>
+  } @else if (cloud.configured()) {
+    <div class="pf-filters" role="group" aria-label="Filter Nextcloud photos">
+      @for (chip of cloud.chips(); track chip.id) {
+        <button
+          type="button"
+          class="pf-filter-chip"
+          [attr.aria-pressed]="cloud.filter() === chip.id"
+          (click)="cloud.setFilter(chip.id)"
+        >
+          {{ chip.label }} <span>{{ format(chip.count) }}</span>
+        </button>
       }
     </div>
   }
+</ion-header>
 
-  @if (selecting()) {
-    <p class="pf-caption select-hint">Tap photos to select. “Select all” picks every photo in {{ filter() === 'all' ? 'the gallery' : 'this filter' }}.</p>
-  } @else {
-    <ul class="legend" aria-label="Badges">
-      <li><span class="badge badge--backed-up"><app-icon name="cloud" [size]="12" [stroke]="2.6" /></span>Backed up</li>
-      <li><span class="badge badge--kept"><app-icon name="check" [size]="11" [stroke]="3" /></span>Kept</li>
-      <li><span class="badge badge--marked"><app-icon name="close" [size]="11" [stroke]="3" /></span>Marked for deletion</li>
-    </ul>
-  }
-
-  @if (loaded() && photos().length === 0) {
-    <section class="pf-empty" aria-labelledby="gallery-empty-title">
-      <span class="pf-icon-tile pf-icon-tile--large"><app-icon name="gallery" [size]="28" /></span>
-      @if (counts().total === 0) {
-        <h2 id="gallery-empty-title" class="pf-empty__title">No photos yet</h2>
-        <p class="pf-body-muted">Scan this device from Home to fill the gallery.</p>
-        <button type="button" class="pf-button pf-button--secondary" (click)="open('/home')">Go to Home</button>
-      } @else {
-        <h2 id="gallery-empty-title" class="pf-empty__title">Nothing here</h2>
-        <p class="pf-body-muted">No photos match this filter.</p>
-        <button type="button" class="pf-button pf-button--secondary" (click)="setFilter('all')">Show all photos</button>
-      }
-    </section>
-  }
-
-  @for (section of sections(); track section.key) {
-    <section class="day" [attr.aria-label]="section.label">
-      <h2 class="day__title">{{ section.label }}</h2>
-      <div class="grid" [class.grid--four]="columns() === 4">
-        @for (photo of section.photos; track photo.id) {
-          <button
-            type="button"
-            class="tile"
-            [class.tile--marked]="state(photo) === 'marked'"
-            [class.pf-tile-selected]="isSelected(photo.id)"
-            [class.tile--selecting]="selecting()"
-            [attr.role]="selecting() ? 'checkbox' : null"
-            [attr.aria-checked]="selecting() ? isSelected(photo.id) : null"
-            [attr.aria-label]="tileLabel(photo)"
-            (pointerdown)="onPressStart(photo, $event)"
-            (pointermove)="onPressMove($event)"
-            (pointerup)="cancelPress()"
-            (pointercancel)="cancelPress()"
-            (pointerleave)="cancelPress()"
-            (contextmenu)="$event.preventDefault()"
-            (click)="tap(photo)"
-          >
-            <app-photo-thumb [uri]="photo.uri" />
-            @if (selecting()) {
-              <span class="pf-select-check" aria-hidden="true">
-                @if (isSelected(photo.id)) {
-                  <app-icon name="check" [size]="13" [stroke]="3" />
-                }
-              </span>
-            }
-            @switch (state(photo)) {
-              @case ('backed-up') {
-                <span class="badge badge--backed-up" aria-hidden="true"><app-icon name="cloud" [size]="13" [stroke]="2.6" /></span>
-              }
-              @case ('kept') {
-                <span class="badge badge--kept" aria-hidden="true"><app-icon name="check" [size]="12" [stroke]="3" /></span>
-              }
-              @case ('marked') {
-                <span class="badge badge--marked" aria-hidden="true"><app-icon name="close" [size]="12" [stroke]="3" /></span>
-              }
-            }
-          </button>
+<ion-content class="pf-content">
+  @if (source() === 'phone') {
+    @if (feedback(); as message) {
+      <div class="pf-notice gallery-feedback" role="status" [class.pf-notice--error]="message.error">
+        <app-icon [name]="message.error ? 'alert' : 'cloud-upload'" [size]="18" [stroke]="2" />
+        <span class="gallery-feedback__text">{{ message.text }}</span>
+        @if (message.showUploads) {
+          <button type="button" class="pf-link" (click)="open('/uploads')">View uploads</button>
         }
       </div>
+    }
+
+    @if (selecting()) {
+      <p class="pf-caption select-hint">Tap photos to select. “Select all” picks every photo in {{ filter() === 'all' ? 'the gallery' : 'this filter' }}.</p>
+    } @else {
+      <ul class="legend" aria-label="Photo labels">
+        <li><span class="pf-tile-label pf-tile-label--inline pf-tile-label--backed-up">Backed up</span>in Nextcloud</li>
+        <li><span class="pf-tile-label pf-tile-label--inline pf-tile-label--kept">Kept</span>waiting to upload</li>
+        <li><span class="pf-tile-label pf-tile-label--inline pf-tile-label--marked">Delete</span>marked for deletion</li>
+      </ul>
+    }
+
+    @if (loaded() && photos().length === 0) {
+      <section class="pf-empty" aria-labelledby="gallery-empty-title">
+        <span class="pf-icon-tile pf-icon-tile--large"><app-icon name="gallery" [size]="28" /></span>
+        @if (counts().total === 0) {
+          <h2 id="gallery-empty-title" class="pf-empty__title">No photos yet</h2>
+          <p class="pf-body-muted">Scan this device from Home to fill the gallery.</p>
+          <button type="button" class="pf-button pf-button--secondary" (click)="open('/home')">Go to Home</button>
+        } @else {
+          <h2 id="gallery-empty-title" class="pf-empty__title">Nothing here</h2>
+          <p class="pf-body-muted">No photos match this filter.</p>
+          <button type="button" class="pf-button pf-button--secondary" (click)="setFilter('all')">Show all photos</button>
+        }
+      </section>
+    }
+
+    @for (section of sections(); track section.key) {
+      <section class="day" [attr.aria-label]="section.label">
+        <h2 class="day__title">{{ section.label }}</h2>
+        <div class="grid" [class.grid--four]="columns() === 4">
+          @for (photo of section.photos; track photo.id) {
+            <button
+              type="button"
+              class="tile"
+              [class.tile--marked]="state(photo) === 'marked'"
+              [class.pf-tile-selected]="isSelected(photo.id)"
+              [class.tile--selecting]="selecting()"
+              [attr.role]="selecting() ? 'checkbox' : null"
+              [attr.aria-checked]="selecting() ? isSelected(photo.id) : null"
+              [attr.aria-label]="tileLabel(photo)"
+              (pointerdown)="onPressStart(photo, $event)"
+              (pointermove)="onPressMove($event)"
+              (pointerup)="cancelPress()"
+              (pointercancel)="cancelPress()"
+              (pointerleave)="cancelPress()"
+              (contextmenu)="$event.preventDefault()"
+              (click)="tap(photo)"
+            >
+              <app-photo-thumb [uri]="photo.uri" />
+              @if (selecting()) {
+                <span class="pf-select-check" aria-hidden="true">
+                  @if (isSelected(photo.id)) {
+                    <app-icon name="check" [size]="13" [stroke]="3" />
+                  }
+                </span>
+              }
+              @if (label(photo); as text) {
+                <span class="pf-tile-label pf-tile-label--{{ state(photo) }}" aria-hidden="true">{{ text }}</span>
+              }
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+  } @else if (cloud.configured() === false) {
+    <section class="pf-empty" aria-labelledby="cloud-setup-title">
+      <span class="pf-icon-tile pf-icon-tile--large pf-icon-tile--keep"><app-icon name="cloud" [size]="30" /></span>
+      <h2 id="cloud-setup-title" class="pf-empty__title">See your backed-up photos</h2>
+      <p class="pf-body-muted">
+        Connect your Nextcloud server to browse everything PhotoFlow has backed up, including photos no longer on this phone.
+      </p>
+      <button type="button" class="pf-button pf-button--primary" (click)="open('/settings')">Set up Nextcloud</button>
     </section>
+  } @else if (cloud.configured()) {
+    @if (online()) {
+      <div class="pf-cloud-status" role="status">
+        <span class="pf-dot" [class.pf-dot--delete]="cloud.syncError()" aria-hidden="true"></span>
+        <div class="pf-cloud-status__text">
+          <p class="pf-title">{{ cloud.syncError() ? 'Could not update' : 'Connected · ' + cloud.folderName() + ' folder' }}</p>
+          <p class="pf-caption">{{ cloud.syncError() ?? (cloud.syncing() ? 'Updating from Nextcloud…' : cloudUpdated()) }}</p>
+        </div>
+        <button
+          type="button"
+          class="pf-cloud-status__refresh"
+          aria-label="Refresh from Nextcloud"
+          [disabled]="cloud.syncing()"
+          (click)="cloud.refresh()"
+        >
+          <app-icon [name]="cloud.syncing() ? 'spinner' : 'refresh'" [size]="18" [stroke]="2" [class.pf-spin]="cloud.syncing()" />
+        </button>
+      </div>
+    } @else {
+      <div class="pf-notice pf-notice--error gallery-feedback" role="status">
+        <app-icon name="wifi-off" [size]="18" [stroke]="2" />
+        <span class="gallery-feedback__text">
+          <strong>You are offline.</strong> Showing previews saved on this phone. The rest loads when you are back online.
+        </span>
+      </div>
+    }
+
+    @if (cloud.recorded(); as found) {
+      <div class="pf-notice gallery-feedback" role="status">
+        <app-icon name="check" [size]="18" [stroke]="2.4" />
+        <span class="gallery-feedback__text">
+          @if (found.kept > 0) {
+            {{ format(found.kept) }} {{ found.kept === 1 ? 'photo on this phone was' : 'photos on this phone were' }}
+            already in Nextcloud and {{ found.kept === 1 ? 'is' : 'are' }} now Kept and backed up.
+          }
+          @if (found.markedForDeletion > 0) {
+            {{ format(found.markedForDeletion) }} marked for deletion {{ found.markedForDeletion === 1 ? 'is' : 'are' }}
+            backed up and still marked.
+          }
+        </span>
+        <button type="button" class="pf-link" (click)="cloud.dismissRecorded()">OK</button>
+      </div>
+    }
+
+    <ul class="legend" aria-label="Badges">
+      <li>
+        <span class="pf-cloud-badge pf-cloud-badge--inline"><app-icon name="cloud" [size]="11" [stroke]="2.6" /></span>
+        Only in Nextcloud (not on this phone)
+      </li>
+    </ul>
+
+    @if (cloud.loaded() && cloud.photos().length === 0) {
+      <section class="pf-empty" aria-labelledby="cloud-empty-title">
+        <span class="pf-icon-tile pf-icon-tile--large">
+          <app-icon [name]="cloud.syncing() ? 'spinner' : 'cloud'" [size]="28" [class.pf-spin]="cloud.syncing()" />
+        </span>
+        @if (cloud.syncing()) {
+          <h2 id="cloud-empty-title" class="pf-empty__title">Loading from Nextcloud</h2>
+          <p class="pf-body-muted">Listing the photos in your backup folder.</p>
+        } @else if (cloud.counts().total === 0) {
+          <h2 id="cloud-empty-title" class="pf-empty__title">No backups yet</h2>
+          <p class="pf-body-muted">Photos you keep are backed up to the {{ cloud.folderName() }} folder and show up here.</p>
+        } @else {
+          <h2 id="cloud-empty-title" class="pf-empty__title">Nothing here</h2>
+          <p class="pf-body-muted">No photos match this filter.</p>
+          <button type="button" class="pf-button pf-button--secondary" (click)="cloud.setFilter('all')">Show all photos</button>
+        }
+      </section>
+    }
+
+    @for (month of cloud.months(); track month.key) {
+      <section class="day" [attr.aria-label]="month.label">
+        <div class="day__head">
+          <h2 class="day__title">{{ month.label }}</h2>
+          <span class="pf-caption">{{ format(month.count) }} {{ month.count === 1 ? 'photo' : 'photos' }}</span>
+        </div>
+        <div class="grid" [class.grid--four]="columns() === 4">
+          @for (photo of month.photos; track photo.remotePath) {
+            <button type="button" class="tile" [attr.aria-label]="cloudTileLabel(photo)" (click)="openCloud(photo)">
+              <app-cloud-thumb [photo]="photo" />
+              @if (!photo.onPhone) {
+                <span class="pf-cloud-badge" aria-hidden="true"><app-icon name="cloud" [size]="13" [stroke]="2.6" /></span>
+              }
+            </button>
+          }
+        </div>
+      </section>
+    }
   }
 
-  <ion-infinite-scroll [disabled]="done()" (ionInfinite)="loadMore($event)">
-    <ion-infinite-scroll-content loadingText="Loading more photos" />
+  <ion-infinite-scroll [disabled]="source() === 'cloud' ? cloud.done() : done()" (ionInfinite)="loadMore($event)">
+    <ion-infinite-scroll-content [loadingText]="source() === 'cloud' ? 'Loading more from Nextcloud' : 'Loading more photos'" />
   </ion-infinite-scroll>
 </ion-content>
 
@@ -149,6 +274,10 @@
 
 @if (viewing(); as photo) {
   <app-photo-viewer [uri]="photo.uri" [fileName]="photo.fileName" (closed)="viewing.set(null)" />
+}
+
+@if (cloud.viewing(); as photo) {
+  <app-cloud-photo-viewer [photo]="photo" (closed)="cloud.viewing.set(null)" (saved)="cloud.reload()" />
 }
 
 @if (pendingBackup(); as request) {

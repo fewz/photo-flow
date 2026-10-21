@@ -390,6 +390,11 @@ button.pf-chip {
   border-radius: 20px;
 }
 
+.pf-icon-tile--dark {
+  background: var(--pf-ink);
+  color: #ffffff;
+}
+
 .pf-icon-tile--keep {
   background: var(--pf-keep-soft);
   color: var(--pf-keep);
@@ -1103,6 +1108,8 @@ ion-tab-button.pf-tab {
 }
 
 .pf-viewer__image {
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1123,6 +1130,7 @@ ion-tab-button.pf-tab {
 }
 
 .pf-viewer__empty {
+  margin: auto;
   color: var(--pf-ink-on-dark);
 }
 
@@ -1630,4 +1638,188 @@ ion-tab-button.pf-tab {
 .pf-scan-popup__action {
   flex: none;
   padding: 0 8px;
+}
+
+// Gallery: photo source switch, Nextcloud status, tile labels
+
+.pf-source {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 var(--pf-gutter);
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--pf-divider);
+}
+
+.pf-source__option {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--pf-ink-muted);
+  font: 600 13px/1 var(--pf-font);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: var(--pf-surface);
+    color: var(--pf-ink);
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(21, 23, 28, 0.08);
+  }
+}
+
+.pf-cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--pf-line);
+  border-radius: 14px;
+  background: var(--pf-surface);
+}
+
+.pf-cloud-status__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pf-cloud-status__refresh {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--pf-input);
+  color: var(--pf-ink);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.pf-tile-label {
+  position: absolute;
+  z-index: 1;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+// Static copies in the legend sit in the text flow.
+.pf-tile-label--inline {
+  position: static;
+}
+
+.pf-tile-label--backed-up {
+  background: var(--pf-surface);
+  color: var(--pf-keep);
+}
+
+.pf-tile-label--inline.pf-tile-label--backed-up {
+  box-shadow: 0 0 0 1px var(--pf-line);
+}
+
+.pf-tile-label--kept {
+  background: var(--pf-keep);
+  color: #ffffff;
+}
+
+.pf-tile-label--marked {
+  background: var(--pf-delete);
+  color: #ffffff;
+}
+
+.pf-cloud-badge {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pf-ink);
+  color: #ffffff;
+}
+
+.pf-cloud-badge--inline {
+  position: static;
+  width: 18px;
+  height: 18px;
+}
+
+// Nextcloud photo details under the full-screen preview.
+
+.pf-cloud-info {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px var(--pf-gutter) calc(var(--ion-safe-area-bottom, 0px) + 20px);
+  border-radius: var(--pf-radius-hero) var(--pf-radius-hero) 0 0;
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+}
+
+.pf-cloud-info__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pf-cloud-info__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 13px;
+
+  dt {
+    color: var(--pf-ink-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+}
+
+.pf-cloud-info__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pf-cloud-info__actions--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pf-cloud-info__hint {
+  margin: 0;
+  text-align: center;
 }

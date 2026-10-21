@@ -1,6 +1,15 @@
 import { NextcloudConnectionError } from '../errors/app-error';
 import { NextcloudWebDav } from '../plugins/nextcloud-webdav';
-import { WebDavCall, WebDavResult, WebDavTransport, WebDavUpload } from './webdav-transport';
+import {
+  PreviewRequest,
+  PreviewResult,
+  SaveRequest,
+  SaveResult,
+  WebDavCall,
+  WebDavResult,
+  WebDavTransport,
+  WebDavUpload,
+} from './webdav-transport';
 
 export class CapacitorWebDavTransport implements WebDavTransport {
   request(call: WebDavCall): Promise<WebDavResult> {
@@ -21,9 +30,19 @@ export class CapacitorWebDavTransport implements WebDavTransport {
       await handle.remove();
     }
   }
+
+  preview(request: PreviewRequest): Promise<PreviewResult> {
+    return withTimeout(NextcloudWebDav.preview(request), 35_000);
+  }
+
+  save(request: SaveRequest): Promise<SaveResult> {
+    return NextcloudWebDav.save(request).catch((error: unknown) => {
+      throw toConnectionError(error);
+    });
+  }
 }
 
-function withTimeout(work: Promise<WebDavResult>, ms: number): Promise<WebDavResult> {
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new NextcloudConnectionError('The Nextcloud server did not respond.'));

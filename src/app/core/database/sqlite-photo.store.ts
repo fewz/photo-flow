@@ -4,6 +4,15 @@ import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacito
 
 import { DB_NAME, NEXTCLOUD_CONFIG_ID } from '../constants/app.constants';
 import { DatabaseError } from '../errors/app-error';
+import {
+  CloudCounts,
+  CloudFilter,
+  CloudFolder,
+  CloudMatch,
+  CloudPhoto,
+  CloudPhotoQuery,
+  CloudSection,
+} from '../models/cloud-photo.model';
 import { NextcloudSettings } from '../models/nextcloud.model';
 import { Photo, PhotoCounts, PhotoQuery, ReviewStatus, UploadStatus } from '../models/photo.model';
 import { ReviewAction } from '../models/review-action.model';
@@ -13,6 +22,32 @@ import { MIGRATIONS } from './migrations';
 import { PhotoStore } from './photo.store';
 
 type SqlRow = Record<string, unknown>;
+
+interface SqlStep {
+  statement: string;
+  values?: unknown[];
+}
+
+/**
+ * 1 when a photo still on this phone is this Nextcloud file. When both sides have a SHA-256 only
+ * the checksums decide; otherwise the photo was backed up to this path, or has the same file name
+ * and size. Keep in sync with `isSameFile` in memory-photo.store.ts.
+ */
+const SAME_FILE = `(
+  (c.sha256 IS NOT NULL AND p.sha256 IS NOT NULL AND lower(p.sha256) = c.sha256)
+  OR ((c.sha256 IS NULL OR p.sha256 IS NULL) AND (
+    p.remote_path = c.remote_path OR (p.file_name = c.file_name AND p.size_bytes = c.size_bytes)
+  ))
+)`;
+
+const ON_PHONE = `EXISTS (SELECT 1 FROM photos p WHERE p.media_missing = 0 AND ${SAME_FILE})`;
+
+/** Kept in sync with `needsBackupRecord` in memory-photo.store.ts. */
+const NEEDS_BACKUP_RECORD = `(
+  p.review_status = 'pending'
+  OR (p.review_status = 'keep' AND p.upload_status NOT IN ('uploaded', 'uploading'))
+  OR (p.review_status = 'delete' AND (p.remote_path IS NULL OR p.remote_etag IS NULL))
+)`;
 
 @Injectable({ providedIn: 'root' })
 export class SqlitePhotoStore implements PhotoStore {
@@ -352,6 +387,127 @@ export class SqlitePhotoStore implements PhotoStore {
     );
   }
 
+  async listCloudFolders(): Promise<CloudFolder[]> {
+    const rows = await this.query('SELECT path, etag, year, month FROM cloud_folders');
+    return rows.map((row) => ({
+      path: String(row['path']),
+      etag: optionalString(row['etag']),
+      year: numberValue(row['year']),
+      month: numberValue(row['month']),
+    }));
+  }
+
+  async replaceCloudFolder(folder: CloudFolder, photos: readonly Omit<CloudPhoto, 'onPhone'>[]): Promise<void> {
+    const set: SqlStep[] = [
+      { statement: 'DELETE FROM cloud_photos WHERE folder = ?', values: [folder.path] },
+      {
+        statement: `INSERT INTO cloud_folders (path, etag, year, month, synced_at) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(path) DO UPDATE SET etag = excluded.etag, year = excluded.year, month = excluded.month,
+            synced_at = excluded.synced_at`,
+        values: [folder.path, folder.etag ?? null, folder.year, folder.month, Date.now()],
+      },
+    ];
+    // 11 values per row keeps each statement well under SQLite's 999 parameter limit.
+    const chunkSize = 50;
+    for (let index = 0; index < photos.length; index += chunkSize) {
+      const chunk = photos.slice(index, index + chunkSize);
+      set.push({
+        statement: `INSERT OR REPLACE INTO cloud_photos (
+            remote_path, folder, file_name, mime_type, size_bytes, last_modified, etag, file_id, sha256, year, month
+          ) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')}`,
+        values: chunk.flatMap((photo) => [
+          photo.remotePath,
+          folder.path,
+          photo.fileName,
+          photo.mimeType,
+          photo.sizeBytes,
+          photo.lastModified,
+          photo.etag ?? null,
+          photo.fileId ?? null,
+          photo.sha256 ?? null,
+          photo.year,
+          photo.month,
+        ]),
+      });
+    }
+    await this.runSet(set);
+  }
+
+  async deleteCloudFoldersExcept(paths: readonly string[]): Promise<void> {
+    const known = await this.listCloudFolders();
+    const keep = new Set(paths);
+    const gone = known.filter((folder) => !keep.has(folder.path)).map((folder) => folder.path);
+    if (gone.length === 0) {
+      return;
+    }
+    await this.runSet(
+      gone.flatMap((path) => [
+        { statement: 'DELETE FROM cloud_photos WHERE folder = ?', values: [path] },
+        { statement: 'DELETE FROM cloud_folders WHERE path = ?', values: [path] },
+      ]),
+    );
+  }
+
+  async clearCloudLibrary(): Promise<void> {
+    await this.runSet([{ statement: 'DELETE FROM cloud_photos' }, { statement: 'DELETE FROM cloud_folders' }]);
+  }
+
+  async listCloudPhotos(query: CloudPhotoQuery): Promise<CloudPhoto[]> {
+    const rows = await this.query(
+      `SELECT c.*, ${ON_PHONE} AS on_phone FROM cloud_photos c ${cloudFilter(query.filter)}
+       ORDER BY c.year DESC, c.month DESC, c.last_modified DESC, c.remote_path DESC LIMIT ? OFFSET ?`,
+      [query.limit, query.offset],
+    );
+    return rows.map(mapCloudPhoto);
+  }
+
+  async cloudSections(filter: CloudFilter): Promise<CloudSection[]> {
+    const rows = await this.query(
+      `SELECT c.folder, c.year, c.month, COUNT(*) AS count FROM cloud_photos c ${cloudFilter(filter)}
+       GROUP BY c.folder, c.year, c.month ORDER BY c.year DESC, c.month DESC`,
+    );
+    return rows.map((row) => ({
+      folder: String(row['folder']),
+      year: numberValue(row['year']),
+      month: numberValue(row['month']),
+      count: numberValue(row['count']),
+    }));
+  }
+
+  async cloudCounts(): Promise<CloudCounts> {
+    const rows = await this.query(
+      `SELECT COUNT(*) AS total, SUM(${ON_PHONE}) AS on_phone FROM cloud_photos c`,
+    );
+    const total = numberValue(rows[0]?.['total']);
+    const onPhone = numberValue(rows[0]?.['on_phone']);
+    return { total, cloudOnly: total - onPhone, onPhone };
+  }
+
+  async listCloudMatches(): Promise<CloudMatch[]> {
+    const rows = await this.query(
+      `SELECT p.id AS photo_id, c.remote_path, c.etag, c.sha256
+       FROM photos p JOIN cloud_photos c ON ${SAME_FILE}
+       WHERE p.media_missing = 0 AND ${NEEDS_BACKUP_RECORD}
+       ORDER BY p.id, CASE WHEN p.remote_path = c.remote_path THEN 0 ELSE 1 END, c.remote_path`,
+    );
+    const seen = new Set<string>();
+    const matches: CloudMatch[] = [];
+    for (const row of rows) {
+      const photoId = String(row['photo_id']);
+      if (seen.has(photoId)) {
+        continue;
+      }
+      seen.add(photoId);
+      matches.push({
+        photoId,
+        remotePath: String(row['remote_path']),
+        etag: optionalString(row['etag']),
+        sha256: optionalString(row['sha256']),
+      });
+    }
+    return matches;
+  }
+
   async databaseVersion(): Promise<number> {
     const rows = await this.query('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations');
     return numberValue(rows[0]?.['version']);
@@ -406,6 +562,20 @@ export class SqlitePhotoStore implements PhotoStore {
       await this.persistWeb();
     } catch (cause) {
       this.logger.error('Database', 'Update failed', { statement, cause: String(cause) });
+      throw new DatabaseError(undefined, { cause });
+    }
+  }
+
+  /** Runs every step in one transaction, so a half-written folder never shows. */
+  private async runSet(set: SqlStep[]): Promise<void> {
+    try {
+      await this.database().executeSet(
+        set.map((step) => ({ statement: step.statement, values: step.values ?? [] })),
+        true,
+      );
+      await this.persistWeb();
+    } catch (cause) {
+      this.logger.error('Database', 'Update failed', { statement: set[0]?.statement, cause: String(cause) });
       throw new DatabaseError(undefined, { cause });
     }
   }
@@ -495,6 +665,34 @@ function mapPhoto(row: SqlRow): Photo {
     blurFlag: optionalFlag(row['blur_flag']),
     createdAt: numberValue(row['created_at']),
     updatedAt: numberValue(row['updated_at']),
+  };
+}
+
+function cloudFilter(filter: CloudFilter): string {
+  switch (filter) {
+    case 'cloud_only':
+      return `WHERE NOT ${ON_PHONE}`;
+    case 'on_phone':
+      return `WHERE ${ON_PHONE}`;
+    default:
+      return '';
+  }
+}
+
+function mapCloudPhoto(row: SqlRow): CloudPhoto {
+  return {
+    remotePath: String(row['remote_path']),
+    folder: String(row['folder']),
+    fileName: String(row['file_name']),
+    mimeType: String(row['mime_type']),
+    sizeBytes: numberValue(row['size_bytes']),
+    lastModified: numberValue(row['last_modified']),
+    etag: optionalString(row['etag']),
+    fileId: optionalString(row['file_id']),
+    sha256: optionalString(row['sha256']),
+    year: numberValue(row['year']),
+    month: numberValue(row['month']),
+    onPhone: numberValue(row['on_phone']) === 1,
   };
 }
 

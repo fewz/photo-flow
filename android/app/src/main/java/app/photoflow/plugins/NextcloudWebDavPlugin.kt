@@ -1,6 +1,7 @@
 package app.photoflow.plugins
 
 import android.util.Log
+import app.photoflow.nextcloud.CloudDownloads
 import app.photoflow.nextcloud.WebDavClient
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -22,7 +23,12 @@ class NextcloudWebDavPlugin : Plugin() {
         }
         Thread {
             try {
-                val result = WebDavClient.request(method, url, username, appPassword, call.getString("depth"))
+                val depth = call.getString("depth")
+                val result = if (method == "PROPFIND" && call.getBoolean("listing", false) == true) {
+                    WebDavClient.listing(url, username, appPassword, depth)
+                } else {
+                    WebDavClient.request(method, url, username, appPassword, depth)
+                }
                 deliver(call) { call.resolve(payload(result)) }
             } catch (error: Exception) {
                 Log.e(TAG, "WebDAV $method failed", error)
@@ -63,6 +69,52 @@ class NextcloudWebDavPlugin : Plugin() {
         }.start()
     }
 
+    @PluginMethod
+    fun preview(call: PluginCall) {
+        val url = call.getString("url")
+        val username = call.getString("username")
+        val appPassword = call.getString("appPassword")
+        val cacheKey = call.getString("cacheKey")
+        if (url.isNullOrBlank() || username.isNullOrBlank() || appPassword.isNullOrEmpty() || cacheKey.isNullOrBlank()) {
+            call.reject("Preview unavailable")
+            return
+        }
+        Thread {
+            try {
+                val file = CloudDownloads.preview(context, url, username, appPassword, cacheKey)
+                val result = JSObject()
+                result.put("path", file.absolutePath)
+                deliver(call) { call.resolve(result) }
+            } catch (error: Exception) {
+                deliver(call) { call.reject(error.message ?: "Preview unavailable") }
+            }
+        }.start()
+    }
+
+    @PluginMethod
+    fun save(call: PluginCall) {
+        val url = call.getString("url")
+        val username = call.getString("username")
+        val appPassword = call.getString("appPassword")
+        val fileName = call.getString("fileName")
+        if (url.isNullOrBlank() || username.isNullOrBlank() || appPassword.isNullOrEmpty() || fileName.isNullOrBlank()) {
+            call.reject("The photo could not be saved.")
+            return
+        }
+        val mimeType = call.getString("mimeType") ?: "image/jpeg"
+        Thread {
+            try {
+                val saved = CloudDownloads.saveToDevice(context, url, username, appPassword, fileName, mimeType)
+                val result = JSObject()
+                result.put("saved", saved)
+                deliver(call) { call.resolve(result) }
+            } catch (error: Exception) {
+                Log.w(TAG, "Saving a photo from Nextcloud failed", error)
+                deliver(call) { call.reject(error.message ?: "The photo could not be saved.") }
+            }
+        }.start()
+    }
+
     private fun deliver(call: PluginCall, action: () -> Unit) {
         val host = activity
         if (host == null) {
@@ -83,6 +135,9 @@ class NextcloudWebDavPlugin : Plugin() {
         }
         if (!result.error.isNullOrBlank()) {
             body.put("error", result.error)
+        }
+        if (result.body != null) {
+            body.put("body", result.body)
         }
         return body
     }

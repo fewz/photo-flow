@@ -93,4 +93,41 @@ export const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_photos_size_modified ON photos (size_bytes, date_modified)`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS cloud_folders (
+        path TEXT PRIMARY KEY NOT NULL,
+        etag TEXT,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        synced_at INTEGER NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS cloud_photos (
+        remote_path TEXT PRIMARY KEY NOT NULL,
+        folder TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        last_modified INTEGER NOT NULL,
+        etag TEXT,
+        file_id TEXT,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_cloud_photos_order ON cloud_photos (year DESC, month DESC, last_modified DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_cloud_photos_folder ON cloud_photos (folder)`,
+      `CREATE INDEX IF NOT EXISTS idx_photos_remote_path ON photos (remote_path)`,
+    ],
+  },
+  {
+    version: 6,
+    statements: [
+      `ALTER TABLE cloud_photos ADD COLUMN sha256 TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_photos_sha256 ON photos (sha256)`,
+      `CREATE INDEX IF NOT EXISTS idx_photos_name_size ON photos (file_name, size_bytes)`,
+      // Listings cached before checksums were read are listed again on the next refresh.
+      `UPDATE cloud_folders SET etag = NULL`,
+    ],
+  },
 ];

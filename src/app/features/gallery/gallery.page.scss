@@ -56,10 +56,13 @@
     align-items: center;
     gap: 6px;
   }
+}
 
-  .badge {
-    position: static;
-  }
+.day__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .day__title {
@@ -102,32 +105,4 @@
   position: absolute;
   inset: 0;
   background: rgba(21, 23, 28, 0.35);
-}
-
-.badge {
-  position: absolute;
-  z-index: 1;
-  top: 6px;
-  right: 6px;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-}
-
-.badge--backed-up {
-  background: var(--pf-surface);
-  box-shadow: 0 0 0 1px var(--pf-line);
-  color: var(--pf-keep);
-}
-
-.badge--kept {
-  background: var(--pf-keep);
-  color: #ffffff;
-}
-
-.badge--marked {
-  background: var(--pf-delete);
-  color: #ffffff;
 }

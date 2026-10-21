@@ -1,5 +1,14 @@
 import { DATABASE_VERSION } from '../constants/app.constants';
 import { Photo, PhotoCounts, PhotoQuery } from '../models/photo.model';
+import {
+  CloudCounts,
+  CloudFilter,
+  CloudFolder,
+  CloudMatch,
+  CloudPhoto,
+  CloudPhotoQuery,
+  CloudSection,
+} from '../models/cloud-photo.model';
 import { NextcloudSettings } from '../models/nextcloud.model';
 import { ReviewAction } from '../models/review-action.model';
 import { UploadJob } from '../models/upload-job.model';
@@ -13,6 +22,8 @@ export class MemoryPhotoStore implements PhotoStore {
   private actions: ReviewAction[] = [];
   private jobs: UploadJob[] = [];
   private nextcloud: NextcloudSettings | null = null;
+  private cloudFolders = new Map<string, CloudFolder>();
+  private cloudPhotos = new Map<string, Omit<CloudPhoto, 'onPhone'>>();
   private ready = false;
 
   async initialize(): Promise<void> {
@@ -222,9 +233,125 @@ export class MemoryPhotoStore implements PhotoStore {
     }
   }
 
+  async listCloudFolders(): Promise<CloudFolder[]> {
+    this.assertReady();
+    return [...this.cloudFolders.values()].map((folder) => ({ ...folder }));
+  }
+
+  async replaceCloudFolder(folder: CloudFolder, photos: readonly Omit<CloudPhoto, 'onPhone'>[]): Promise<void> {
+    this.assertReady();
+    this.dropCloudFolder(folder.path);
+    this.cloudFolders.set(folder.path, { ...folder });
+    for (const photo of photos) {
+      this.cloudPhotos.set(photo.remotePath, { ...photo, folder: folder.path });
+    }
+  }
+
+  async deleteCloudFoldersExcept(paths: readonly string[]): Promise<void> {
+    this.assertReady();
+    const keep = new Set(paths);
+    for (const path of [...this.cloudFolders.keys()]) {
+      if (!keep.has(path)) {
+        this.dropCloudFolder(path);
+      }
+    }
+  }
+
+  async clearCloudLibrary(): Promise<void> {
+    this.assertReady();
+    this.cloudFolders.clear();
+    this.cloudPhotos.clear();
+  }
+
+  async listCloudPhotos(query: CloudPhotoQuery): Promise<CloudPhoto[]> {
+    this.assertReady();
+    return this.matchingCloud(query.filter).slice(query.offset, query.offset + query.limit);
+  }
+
+  async cloudSections(filter: CloudFilter): Promise<CloudSection[]> {
+    this.assertReady();
+    const sections = new Map<string, CloudSection>();
+    for (const photo of this.matchingCloud(filter)) {
+      const section = sections.get(photo.folder) ?? { folder: photo.folder, year: photo.year, month: photo.month, count: 0 };
+      section.count += 1;
+      sections.set(photo.folder, section);
+    }
+    return [...sections.values()];
+  }
+
+  async cloudCounts(): Promise<CloudCounts> {
+    this.assertReady();
+    const all = this.matchingCloud('all');
+    const onPhone = all.filter((photo) => photo.onPhone).length;
+    return { total: all.length, cloudOnly: all.length - onPhone, onPhone };
+  }
+
+  async listCloudMatches(): Promise<CloudMatch[]> {
+    this.assertReady();
+    const cloud = [...this.cloudPhotos.values()].sort((left, right) => left.remotePath.localeCompare(right.remotePath));
+    const matches: CloudMatch[] = [];
+    for (const photo of this.photos.values()) {
+      if (photo.mediaMissing || !needsBackupRecord(photo)) {
+        continue;
+      }
+      const same = cloud.filter((file) => isSameFile(photo, file));
+      const match = same.find((file) => file.remotePath === photo.remotePath) ?? same[0];
+      if (match) {
+        matches.push({ photoId: photo.id, remotePath: match.remotePath, etag: match.etag, sha256: match.sha256 });
+      }
+    }
+    return matches;
+  }
+
+  private matchingCloud(filter: CloudFilter): CloudPhoto[] {
+    const local = [...this.photos.values()].filter((photo) => !photo.mediaMissing);
+    return [...this.cloudPhotos.values()]
+      .map((photo) => ({ ...photo, onPhone: local.some((candidate) => isSameFile(candidate, photo)) }))
+      .filter((photo) => filter === 'all' || (filter === 'on_phone') === photo.onPhone)
+      .sort(
+        (left, right) =>
+          right.year - left.year ||
+          right.month - left.month ||
+          right.lastModified - left.lastModified ||
+          right.remotePath.localeCompare(left.remotePath),
+      );
+  }
+
+  private dropCloudFolder(path: string): void {
+    this.cloudFolders.delete(path);
+    for (const [remotePath, photo] of this.cloudPhotos) {
+      if (photo.folder === path) {
+        this.cloudPhotos.delete(remotePath);
+      }
+    }
+  }
+
   private assertReady(): void {
     if (!this.ready) {
       throw new DatabaseError('The local library is not open yet.');
     }
   }
+}
+
+/** Same rule as `NEEDS_BACKUP_RECORD` in sqlite-photo.store.ts. */
+function needsBackupRecord(photo: Photo): boolean {
+  switch (photo.reviewStatus) {
+    case 'pending':
+      return true;
+    case 'keep':
+      return photo.uploadStatus !== 'uploaded' && photo.uploadStatus !== 'uploading';
+    default:
+      return !photo.remotePath || !photo.remoteETag;
+  }
+}
+
+/** Same rule as `SAME_FILE` in sqlite-photo.store.ts. */
+function isSameFile(local: Photo, cloud: Omit<CloudPhoto, 'onPhone'>): boolean {
+  if (local.sha256 && cloud.sha256) {
+    return local.sha256.toLowerCase() === cloud.sha256;
+  }
+  return (
+    local.remotePath === cloud.remotePath ||
+    (local.fileName === cloud.fileName && local.sizeBytes === cloud.sizeBytes)
+  );
 }

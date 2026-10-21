@@ -123,6 +123,33 @@ export function photoRemotePath(baseFolder: string, photo: { fileName: string; d
   return `${folder}/${year}/${month}/${name}`;
 }
 
+/** 0–11 for an English month folder name such as `March`, otherwise -1. */
+export function monthFolderIndex(name: string): number {
+  return MONTH_NAMES.findIndex((month) => month.toLowerCase() === name.trim().toLowerCase());
+}
+
+/** Server-side preview image, scaled to fit `size` without cropping. */
+export function previewUrl(serverUrl: string, file: { fileId?: string; remotePath: string }, size: number): string {
+  const base = normalizeServerUrl(serverUrl);
+  const edge = String(Math.round(size));
+  if (file.fileId) {
+    const query = new URLSearchParams({ fileId: file.fileId, x: edge, y: edge, a: '1' });
+    return `${base}/index.php/core/preview?${query.toString()}`;
+  }
+  const query = new URLSearchParams({ file: `/${file.remotePath}`, x: edge, y: edge, a: '1' });
+  return `${base}/index.php/core/preview.png?${query.toString()}`;
+}
+
+/** The file in the Nextcloud web interface. Signing in there is up to the browser. */
+export function webFileUrl(serverUrl: string, file: { fileId?: string; remotePath: string }): string {
+  const base = normalizeServerUrl(serverUrl);
+  if (file.fileId) {
+    return `${base}/index.php/f/${encodeURIComponent(file.fileId)}`;
+  }
+  const folder = file.remotePath.split('/').slice(0, -1).join('/');
+  return `${base}/index.php/apps/files/?${new URLSearchParams({ dir: `/${folder}` }).toString()}`;
+}
+
 export function parentFolders(remotePath: string): string[] {
   const parts = remotePath.split('/').filter((part) => part.length > 0);
   const folders: string[] = [];

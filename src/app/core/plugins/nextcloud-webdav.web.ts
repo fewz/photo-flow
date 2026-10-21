@@ -1,5 +1,14 @@
 import { environment } from '../../../environments/environment';
-import { WebDavCall, WebDavResult, WebDavUpload } from '../nextcloud/webdav-transport';
+import { LISTING_PROPFIND_BODY } from '../nextcloud/remote-listing';
+import {
+  PreviewRequest,
+  PreviewResult,
+  SaveRequest,
+  SaveResult,
+  WebDavCall,
+  WebDavResult,
+  WebDavUpload,
+} from '../nextcloud/webdav-transport';
 import { readWebPhoto } from './web-photo-library';
 import type { UploadProgressEvent } from './nextcloud-webdav';
 
@@ -18,16 +27,38 @@ export class NextcloudWebDavWeb {
 
   request(call: WebDavCall): Promise<WebDavResult> {
     const propfind = call.method === 'PROPFIND';
+    const listing = propfind && call.listing === true;
     return send({
       method: call.method,
       url: call.url,
       username: call.username,
       appPassword: call.appPassword,
       depth: call.depth,
-      body: propfind ? PROPFIND_BODY : null,
+      body: propfind ? (listing ? LISTING_PROPFIND_BODY : PROPFIND_BODY) : null,
       contentType: propfind ? 'application/xml; charset=utf-8' : undefined,
       timeoutMs: 30_000,
+      readBody: listing,
     });
+  }
+
+  async preview(request: PreviewRequest): Promise<PreviewResult> {
+    const blob = await download(request, 30_000);
+    return { dataUrl: await dataUrl(blob) };
+  }
+
+  /** The browser has no photo library to write to, so the original goes to its downloads. */
+  async save(request: SaveRequest): Promise<SaveResult> {
+    const blob = await download(request, 300_000);
+    const href = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = request.fileName;
+      link.click();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    }
+    return {};
   }
 
   async upload(call: WebDavUpload): Promise<WebDavResult> {
@@ -50,6 +81,8 @@ export class NextcloudWebDavWeb {
       appPassword: call.appPassword,
       body: bytes,
       contentType: call.mimeType || 'application/octet-stream',
+      // Nextcloud stores it; the gallery matches backups to this phone's photos with it.
+      checksum: sha256 ? `SHA256:${sha256}` : undefined,
       timeoutMs: 120_000,
       onProgress: (progress) => this.emit(call.jobId, progress),
     });
@@ -109,9 +142,12 @@ interface SendOptions {
   contentType?: string;
   timeoutMs: number;
   onProgress?: (progress: number) => void;
+  readBody?: boolean;
+  responseType?: 'blob';
+  checksum?: string;
 }
 
-function send(options: SendOptions): Promise<WebDavResult> {
+function send(options: SendOptions): Promise<WebDavResult & { blob?: Blob }> {
   let endpoint: { requestUrl: string; targetOrigin?: string };
   try {
     endpoint = resolveWebDavEndpoint(options.url, environment.webDavDevProxy, location.origin);
@@ -122,12 +158,18 @@ function send(options: SendOptions): Promise<WebDavResult> {
     const xhr = new XMLHttpRequest();
     xhr.open(options.method, endpoint.requestUrl);
     xhr.timeout = options.timeoutMs;
+    if (options.responseType) {
+      xhr.responseType = options.responseType;
+    }
     xhr.setRequestHeader('Authorization', basicAuthorization(options.username, options.appPassword));
     if (options.depth) {
       xhr.setRequestHeader('Depth', options.depth);
     }
     if (options.contentType) {
       xhr.setRequestHeader('Content-Type', options.contentType);
+    }
+    if (options.checksum) {
+      xhr.setRequestHeader('OC-Checksum', options.checksum);
     }
     if (endpoint.targetOrigin) {
       xhr.setRequestHeader('X-Photoflow-Target', endpoint.targetOrigin);
@@ -144,11 +186,43 @@ function send(options: SendOptions): Promise<WebDavResult> {
         resolve({ status: 0, error: reachabilityMessage() });
         return;
       }
-      resolve({ status: xhr.status, etag: trimEtag(xhr.getResponseHeader('ETag')) });
+      resolve({
+        status: xhr.status,
+        etag: trimEtag(xhr.getResponseHeader('ETag')),
+        body: options.readBody ? xhr.responseText : undefined,
+        blob: options.responseType === 'blob' ? (xhr.response as Blob) : undefined,
+      });
     };
     xhr.onerror = () => resolve({ status: 0, error: reachabilityMessage() });
     xhr.ontimeout = () => resolve({ status: 0, error: 'The Nextcloud server did not respond.' });
     xhr.send(options.body ?? null);
+  });
+}
+
+async function download(request: { url: string; username: string; appPassword: string }, timeoutMs: number): Promise<Blob> {
+  const result = await send({
+    method: 'GET',
+    url: request.url,
+    username: request.username,
+    appPassword: request.appPassword,
+    timeoutMs,
+    responseType: 'blob',
+  });
+  if (result.status === 0) {
+    throw new Error(result.error ?? reachabilityMessage());
+  }
+  if (result.status < 200 || result.status >= 300 || !result.blob) {
+    throw new Error('The file could not be downloaded from Nextcloud.');
+  }
+  return result.blob;
+}
+
+function dataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Preview unavailable'));
+    reader.readAsDataURL(blob);
   });
 }
 

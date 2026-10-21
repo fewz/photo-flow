@@ -9,6 +9,7 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
+import app.photoflow.nextcloud.CloudDownloads
 import app.photoflow.thumbnails.ThumbnailCache
 import com.getcapacitor.annotation.CapacitorPlugin
 import java.io.File
@@ -54,6 +55,7 @@ class PhotoThumbnailPlugin : Plugin() {
     fun clearThumbnailCache(call: PluginCall) {
         val directory = File(context.cacheDir, "thumbs")
         directory.listFiles()?.forEach { file -> file.delete() }
+        CloudDownloads.clearPreviews(context)
         call.resolve()
     }
 

@@ -8,6 +8,7 @@ import { CapacitorMediaLibrary } from './plugins/capacitor-media-library';
 import { CapacitorPhotoDeleter } from './plugins/photo-deleter';
 import { CapacitorBackgroundUploader } from './plugins/upload-work';
 import { PhotoRepository } from './repositories/photo.repository';
+import { CloudLibraryService } from './services/cloud-library.service';
 import { DeletionService } from './services/deletion.service';
 import { Logger } from './services/logger.service';
 import { NetworkMonitor } from './services/network-monitor';
@@ -48,6 +49,18 @@ export function providePhotoFlow(): EnvironmentProviders {
           inject(NetworkMonitor),
           inject(Logger),
           Capacitor.getPlatform() === 'android' ? new CapacitorBackgroundUploader() : null,
+        ),
+    },
+    {
+      provide: CloudLibraryService,
+      useFactory: () =>
+        new CloudLibraryService(
+          inject(PhotoRepository),
+          inject(NextcloudService),
+          inject(NextcloudWebDavProvider),
+          inject(SecureCredentialStore),
+          inject(NetworkMonitor),
+          inject(Logger),
         ),
     },
     {

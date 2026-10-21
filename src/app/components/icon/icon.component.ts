@@ -10,13 +10,16 @@ export type IconName =
   | 'cloud'
   | 'cloud-upload'
   | 'copy'
+  | 'download'
   | 'expand'
+  | 'external'
   | 'gallery'
   | 'home'
   | 'image'
   | 'lock'
   | 'logo'
   | 'pause-circle'
+  | 'phone'
   | 'refresh'
   | 'settings'
   | 'shield'
@@ -74,6 +77,12 @@ export type IconName =
           <rect x="8" y="8" width="12" height="12" rx="2"></rect>
           <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
         }
+        @case ('download') {
+          <path d="M12 4v11M8 11l4 4 4-4M5 20h14"></path>
+        }
+        @case ('external') {
+          <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path>
+        }
         @case ('expand') {
           <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>
         }
@@ -102,6 +111,10 @@ export type IconName =
         @case ('pause-circle') {
           <circle cx="12" cy="12" r="9"></circle>
           <path d="M10 9v6M14 9v6"></path>
+        }
+        @case ('phone') {
+          <rect x="7" y="3" width="10" height="18" rx="2"></rect>
+          <path d="M11 18h2"></path>
         }
         @case ('refresh') {
           <path d="M20 11a8 8 0 0 0-14.9-3.5M4 4v4h4M4 13a8 8 0 0 0 14.9 3.5M20 20v-4h-4"></path>

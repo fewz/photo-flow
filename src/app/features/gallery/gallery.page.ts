@@ -12,21 +12,39 @@ import {
 import { Subscription } from 'rxjs';
 
 import { BackupSheetComponent } from '../../components/backup-sheet/backup-sheet.component';
+import { CloudPhotoViewerComponent } from '../../components/cloud-photo-viewer/cloud-photo-viewer.component';
+import { CloudThumbComponent } from '../../components/cloud-thumb/cloud-thumb.component';
 import { IconComponent } from '../../components/icon/icon.component';
 import { PhotoThumbComponent } from '../../components/photo-thumb/photo-thumb.component';
 import { PhotoViewerComponent } from '../../components/photo-viewer/photo-viewer.component';
-import { GALLERY_PAGE_SIZE, SETTING_GALLERY_COLUMNS } from '../../core/constants/app.constants';
+import {
+  DEFAULT_REMOTE_FOLDER,
+  GALLERY_PAGE_SIZE,
+  SETTING_GALLERY_COLUMNS,
+  SETTING_GALLERY_SOURCE,
+} from '../../core/constants/app.constants';
 import { toUserMessage } from '../../core/errors/app-error';
+import { CloudPhoto } from '../../core/models/cloud-photo.model';
 import { Photo, PhotoCounts, PhotoQuery } from '../../core/models/photo.model';
 import { PhotoRepository } from '../../core/repositories/photo.repository';
+import { CloudLibraryService } from '../../core/services/cloud-library.service';
 import { NetworkMonitor } from '../../core/services/network-monitor';
 import { SecureCredentialStore } from '../../core/services/secure-credential.store';
 import { BackupPlan, UploadQueueService } from '../../core/services/upload-queue.service';
+import { CloudGallery, updatedLabel } from './cloud-gallery';
 import { groupByDay } from './photo-sections';
 
 type GalleryFilter = 'all' | 'pending' | 'keep' | 'delete' | 'duplicates';
 const FILTERS: readonly unknown[] = ['all', 'pending', 'keep', 'delete', 'duplicates'];
 type TileState = 'backed-up' | 'kept' | 'marked' | 'pending';
+export type GallerySource = 'phone' | 'cloud';
+
+/** Text labels, not icons, so they never look like the selection check mark. */
+const TILE_LABELS: Partial<Record<TileState, string>> = {
+  'backed-up': 'Backed up',
+  kept: 'Kept',
+  marked: 'Delete',
+};
 
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_SLOP = 10;
@@ -81,10 +99,21 @@ const STATE_LABELS: Record<TileState, string> = {
     PhotoThumbComponent,
     PhotoViewerComponent,
     BackupSheetComponent,
+    CloudThumbComponent,
+    CloudPhotoViewerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
+  readonly source = signal<GallerySource>('phone');
+  readonly cloud = new CloudGallery(inject(CloudLibraryService), inject(NetworkMonitor), async () => {
+    const settings = await this.repository.getNextcloudSettings();
+    return settings?.baseRemotePath || DEFAULT_REMOTE_FOLDER;
+  });
+  readonly cloudUpdated = computed(() => {
+    const at = this.cloud.lastSynced();
+    return at ? `Updated ${updatedLabel(at)}` : 'Not updated yet';
+  });
   readonly filter = signal<GalleryFilter>('all');
   readonly columns = signal<3 | 4>(3);
   readonly counts = signal<PhotoCounts>(EMPTY_COUNTS);
@@ -121,6 +150,8 @@ export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   private pressStart: { x: number; y: number } | null = null;
   private suppressClick = false;
   private backHandle: Subscription | null = null;
+  private stopReconnect: (() => void) | null = null;
+  private readonly network = inject(NetworkMonitor);
   private readonly repository = inject(PhotoRepository);
   private readonly uploads = inject(UploadQueueService);
   private readonly credentials = inject(SecureCredentialStore);
@@ -130,20 +161,56 @@ export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   ionViewWillEnter(): void {
     // `/gallery?filter=duplicates` (from Home) picks the filter; tab pages are reused, so read the live URL.
     const requested = this.router.parseUrl(this.router.url).queryParams['filter'];
-    if (FILTERS.includes(requested)) {
+    const linked = FILTERS.includes(requested);
+    if (linked) {
       this.filter.set(requested);
     }
     void this.loadColumns();
+    // A filter link is about photos on this phone, so it opens that source.
+    void this.loadSource(linked);
     void this.reload();
+    // Back online: list what changed and retry the previews that were not cached.
+    this.stopReconnect ??= this.network.onReconnect(() => {
+      if (this.source() === 'cloud') {
+        void this.cloud.refresh();
+      }
+    });
   }
 
   ionViewWillLeave(): void {
     this.exitSelection();
+    this.stopReconnect?.();
+    this.stopReconnect = null;
   }
 
   ngOnDestroy(): void {
     this.cancelPress();
     this.backHandle?.unsubscribe();
+    this.stopReconnect?.();
+  }
+
+  async setSource(source: GallerySource): Promise<void> {
+    if (source === this.source()) {
+      return;
+    }
+    this.exitSelection();
+    this.source.set(source);
+    await this.repository.setSetting(SETTING_GALLERY_SOURCE, source);
+    if (source === 'cloud') {
+      await this.cloud.enter();
+    } else {
+      // Photos found in Nextcloud may have just been marked Kept and backed up.
+      await this.reload();
+    }
+  }
+
+  openCloud(photo: CloudPhoto): void {
+    this.cloud.viewing.set(photo);
+  }
+
+  cloudTileLabel(photo: CloudPhoto): string {
+    const where = photo.onPhone ? 'also on this phone' : 'only in Nextcloud';
+    return `${photo.fileName}, ${where}. Open full screen`;
   }
 
   setFilter(filter: GalleryFilter): void {
@@ -163,7 +230,11 @@ export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   }
 
   async loadMore(event: CustomEvent): Promise<void> {
-    await this.append(this.loadToken);
+    if (this.source() === 'cloud') {
+      await this.cloud.loadMore();
+    } else {
+      await this.append(this.loadToken);
+    }
     await (event.target as HTMLIonInfiniteScrollElement).complete();
   }
 
@@ -322,6 +393,10 @@ export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
     return 'pending';
   }
 
+  label(photo: Photo): string | null {
+    return TILE_LABELS[this.state(photo)] ?? null;
+  }
+
   tileLabel(photo: Photo): string {
     const state = STATE_LABELS[this.state(photo)];
     if (this.selecting()) {
@@ -346,6 +421,20 @@ export class GalleryPage implements ViewWillEnter, ViewWillLeave, OnDestroy {
       next.add(id);
     }
     this.selected.set(next);
+  }
+
+  private async loadSource(phoneOnly: boolean): Promise<void> {
+    if (phoneOnly) {
+      this.source.set('phone');
+      await this.repository.setSetting(SETTING_GALLERY_SOURCE, 'phone');
+      return;
+    }
+    const stored = await this.repository.getSetting(SETTING_GALLERY_SOURCE);
+    const source: GallerySource = stored === 'cloud' ? 'cloud' : 'phone';
+    this.source.set(source);
+    if (source === 'cloud') {
+      await this.cloud.enter();
+    }
   }
 
   private async loadColumns(): Promise<void> {
