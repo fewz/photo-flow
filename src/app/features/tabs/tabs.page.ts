@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { IonLabel, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 
 import { IconComponent, IconName } from '../../components/icon/icon.component';
+import { ScanStatusComponent } from '../../components/scan-status/scan-status.component';
 
 interface Tab {
   path: string;
@@ -22,8 +23,9 @@ interface Tab {
         }
       </ion-tab-bar>
     </ion-tabs>
+    <app-scan-status />
   `,
-  imports: [IonTabs, IonTabBar, IonTabButton, IonLabel, IconComponent],
+  imports: [IonTabs, IonTabBar, IonTabButton, IonLabel, IconComponent, ScanStatusComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TabsPage {

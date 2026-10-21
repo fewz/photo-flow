@@ -88,6 +88,17 @@ cd android; .\gradlew.bat assembleDebug
 
 The debug APK ends up in `android\app\build\outputs\apk\debug\app-debug.apk`.
 
+### Live reload on a phone
+
+With the phone connected over USB (USB debugging on) and on the same network as this computer:
+
+```powershell
+npm run android:live                       # pick up the phone automatically
+npm run android:live -- --target <id>      # with several devices (id from `adb devices`)
+```
+
+It starts the dev server on your LAN address, builds and installs a debug app that loads from it, and opens it; every saved change reloads the phone. If it picks the wrong address, set `LIVE_HOST=<this computer's IP>`. Stop with Ctrl+C, then install a normal build again (`npm run build`, `npx cap sync android`, `assembleDebug`, `adb install -r …`), because the live-reload app only works while the dev server runs.
+
 ### Running in the browser
 
 `npm start` runs the whole app in Chrome or Edge without a phone. Instead of the phone's gallery, you pick a **folder of photos** (File System Access API). Nextcloud calls go through the dev server proxy (`proxy.conf.mjs`), so a Nextcloud on your local network works without CORS changes. In the browser the app password is only kept for the session.

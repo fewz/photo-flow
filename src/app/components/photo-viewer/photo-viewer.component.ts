@@ -14,8 +14,8 @@ import {
 } from '@angular/core';
 import { Platform } from '@ionic/angular';
 
-import { REVIEW_PREVIEW_SIZE } from '../../core/constants/app.constants';
 import { ThumbnailService } from '../../core/services/thumbnail.service';
+import { fullScreenPreviewSize } from '../../core/utils/preview-size';
 import { IconComponent } from '../icon/icon.component';
 
 /** Full-screen look at a photo preview. Closes with the button, Escape, or the Android back button. */
@@ -47,7 +47,7 @@ import { IconComponent } from '../icon/icon.component';
 export class PhotoViewerComponent {
   /** A preview that is already loaded. */
   readonly src = input<string | null>(null);
-  /** Otherwise the viewer loads the cached review-size preview for this URI (never the original). */
+  /** Otherwise the viewer loads the cached full-screen preview for this URI (never the original). */
   readonly uri = input<string | null>(null);
   readonly fileName = input('');
   readonly closed = output<void>();
@@ -63,7 +63,7 @@ export class PhotoViewerComponent {
     effect(() => {
       const uri = this.uri();
       if (!this.src() && uri) {
-        this.thumbnails.preview(uri, REVIEW_PREVIEW_SIZE).then(
+        this.thumbnails.preview(uri, fullScreenPreviewSize()).then(
           (preview) => this.loaded.set(preview),
           () => this.failed.set(true),
         );

@@ -48,7 +48,6 @@ interface QueueSummary {
 export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   readonly web = Capacitor.getPlatform() === 'web';
   readonly counts = signal<PhotoCounts>(EMPTY_COUNTS);
-  readonly scanning = signal(false);
   readonly error = signal('');
   readonly access = signal<PhotoAccess | null>(null);
   readonly nextcloud = signal<NextcloudSettings | null>(null);
@@ -91,6 +90,8 @@ export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   private timer = 0;
   private readonly photos = inject(PhotoRepository);
   private readonly scanner = inject(PhotoScannerService);
+  readonly scanning = computed(() => this.scanner.status().state === 'scanning');
+  readonly scanFound = computed(() => this.scanner.status().found);
   private readonly uploads = inject(UploadQueueService);
   private readonly media = inject(CapacitorMediaLibrary);
   private readonly router = inject(Router);
@@ -111,7 +112,6 @@ export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
 
   async scan(): Promise<void> {
     primeWebPhotoAccess();
-    this.scanning.set(true);
     this.error.set('');
     try {
       const summary = await this.scanner.scan();
@@ -119,8 +119,6 @@ export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
       await this.refresh();
     } catch (error) {
       this.error.set(toUserMessage(error, 'The photo library could not be read. Try again.'));
-    } finally {
-      this.scanning.set(false);
     }
   }
 

@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 
 import { SCAN_PAGE_SIZE, SETTING_LAST_SCAN_ACCESS } from '../constants/app.constants';
@@ -13,7 +14,20 @@ export interface ScanSummary {
   access: PhotoAccess;
 }
 
+/** Shown by the scan popup. `found` counts photos read so far in this run. */
+export interface ScanStatus {
+  state: 'idle' | 'scanning' | 'done';
+  found: number;
+  inserted: number;
+  hidden: boolean;
+}
+
+const IDLE_STATUS: ScanStatus = { state: 'idle', found: 0, inserted: 0, hidden: false };
+
 export class PhotoScannerService {
+  readonly status = signal<ScanStatus>(IDLE_STATUS);
+  private running: Promise<ScanSummary> | null = null;
+
   constructor(
     private readonly media: MediaLibrary,
     private readonly photos: PhotoRepository,
@@ -21,7 +35,35 @@ export class PhotoScannerService {
     private readonly pageSize = SCAN_PAGE_SIZE,
   ) {}
 
-  async scan(): Promise<ScanSummary> {
+  /** Starts a scan, or joins the one already running. */
+  scan(): Promise<ScanSummary> {
+    if (!this.running) {
+      this.running = this.run().finally(() => {
+        this.running = null;
+      });
+    }
+    return this.running;
+  }
+
+  /** Hides the popup; a running scan keeps going. */
+  dismissStatus(): void {
+    const status = this.status();
+    this.status.set(status.state === 'scanning' ? { ...status, hidden: true } : IDLE_STATUS);
+  }
+
+  private async run(): Promise<ScanSummary> {
+    this.status.set({ ...IDLE_STATUS, state: 'scanning' });
+    try {
+      const summary = await this.scanLibrary();
+      this.status.set({ state: 'done', found: this.status().found, inserted: summary.inserted, hidden: false });
+      return summary;
+    } catch (error) {
+      this.status.set(IDLE_STATUS);
+      throw error;
+    }
+  }
+
+  private async scanLibrary(): Promise<ScanSummary> {
     const permission = await this.media.requestPermissions();
     await this.photos.setSetting(SETTING_LAST_SCAN_ACCESS, permission.photos);
     if (permission.photos === 'denied') {
@@ -51,6 +93,7 @@ export class PhotoScannerService {
           }
         }
         offset += page.photos.length;
+        this.status.update((status) => ({ ...status, found: offset }));
         if (page.photos.length < this.pageSize) {
           break;
         }

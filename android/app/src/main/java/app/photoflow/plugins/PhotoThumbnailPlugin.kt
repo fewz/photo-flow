@@ -23,8 +23,8 @@ class PhotoThumbnailPlugin : Plugin() {
             call.reject("A photo URI is required.")
             return
         }
-        val width = (call.getInt("width", 1080) ?: 1080).coerceIn(64, 2048)
-        val height = (call.getInt("height", 1080) ?: 1080).coerceIn(64, 2048)
+        val width = (call.getInt("width", 1080) ?: 1080).coerceIn(64, MAX_PREVIEW_SIZE)
+        val height = (call.getInt("height", 1080) ?: 1080).coerceIn(64, MAX_PREVIEW_SIZE)
         Thread {
             try {
                 val bitmap = loadPreview(Uri.parse(uriValue), width, height)
@@ -33,7 +33,7 @@ class PhotoThumbnailPlugin : Plugin() {
                 val safeName = uriValue.replace(Regex("[^A-Za-z0-9]"), "_").takeLast(80)
                 val file = File(directory, "${safeName}_${width}.jpg")
                 FileOutputStream(file).use { output ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, output)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
                 }
                 if (!bitmap.isRecycled) {
                     bitmap.recycle()
@@ -69,5 +69,11 @@ class PhotoThumbnailPlugin : Plugin() {
             null,
         )
         return thumbnail ?: throw IllegalStateException("Thumbnail unavailable")
+    }
+
+    private companion object {
+        // Keep in sync with MAX_PREVIEW_SIZE in app.constants.ts.
+        const val MAX_PREVIEW_SIZE = 2560
+        const val JPEG_QUALITY = 90
     }
 }

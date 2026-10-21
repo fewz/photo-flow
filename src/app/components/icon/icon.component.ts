@@ -20,6 +20,7 @@ export type IconName =
   | 'refresh'
   | 'settings'
   | 'shield'
+  | 'spinner'
   | 'trash'
   | 'undo'
   | 'uploads'
@@ -113,6 +114,10 @@ export type IconName =
         @case ('shield') {
           <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"></path>
           <path d="M9 12l2 2 4-4"></path>
+        }
+        @case ('spinner') {
+          <circle cx="12" cy="12" r="8.5" stroke-opacity="0.22"></circle>
+          <path d="M20.5 12a8.5 8.5 0 0 0-8.5-8.5"></path>
         }
         @case ('undo') {
           <path d="M9 14L4 9l5-5"></path>

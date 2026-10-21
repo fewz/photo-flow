@@ -191,14 +191,24 @@
     </div>
 
     @if (counts().total > 0) {
-      <button type="button" class="pf-row-button" [disabled]="scanning()" (click)="scan()">
-        <app-icon name="refresh" [size]="22" />
-        <span class="pf-row-button__text">
-          <span class="pf-row-button__title">{{ rescanLabel() }}</span>
-          <span class="pf-caption">{{ format(counts().total) }} photos {{ web ? 'in this folder' : 'on this device' }}</span>
-        </span>
-        <app-icon class="row-chevron" name="chevron-right" [size]="18" [stroke]="2" />
-      </button>
+      @if (scanning()) {
+        <button type="button" class="pf-row-button pf-row-button--busy" disabled>
+          <app-icon class="pf-spin scan-spinner" name="spinner" [size]="22" [stroke]="2.2" />
+          <span class="pf-row-button__text">
+            <span class="pf-row-button__title">Scanning…</span>
+            <span class="pf-caption">{{ scanFound() ? format(scanFound()) + ' found so far' : 'Reading your gallery' }}</span>
+          </span>
+        </button>
+      } @else {
+        <button type="button" class="pf-row-button" (click)="scan()">
+          <app-icon name="refresh" [size]="22" />
+          <span class="pf-row-button__text">
+            <span class="pf-row-button__title">{{ rescanLabel() }}</span>
+            <span class="pf-caption">{{ format(counts().total) }} photos {{ web ? 'in this folder' : 'on this device' }}</span>
+          </span>
+          <app-icon class="row-chevron" name="chevron-right" [size]="18" [stroke]="2" />
+        </button>
+      }
     }
 
     @if (access() === 'limited') {

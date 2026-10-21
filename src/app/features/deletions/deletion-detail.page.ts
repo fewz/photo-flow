@@ -7,12 +7,12 @@ import { DeleteSheetComponent, DeleteSummary } from '../../components/delete-she
 import { IconComponent } from '../../components/icon/icon.component';
 import { PhotoThumbComponent } from '../../components/photo-thumb/photo-thumb.component';
 import { PhotoViewerComponent } from '../../components/photo-viewer/photo-viewer.component';
-import { REVIEW_PREVIEW_SIZE } from '../../core/constants/app.constants';
 import { toUserMessage } from '../../core/errors/app-error';
 import { hasVerifiedBackup, Photo } from '../../core/models/photo.model';
 import { PhotoRepository } from '../../core/repositories/photo.repository';
 import { DeletionService } from '../../core/services/deletion.service';
 import { formatBytes } from '../../core/utils/bytes';
+import { fullScreenPreviewSize } from '../../core/utils/preview-size';
 
 @Component({
   selector: 'app-deletion-detail',
@@ -22,7 +22,7 @@ import { formatBytes } from '../../core/utils/bytes';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeletionDetailPage implements ViewWillEnter {
-  readonly previewSize = REVIEW_PREVIEW_SIZE;
+  readonly previewSize = fullScreenPreviewSize();
   readonly photo = signal<Photo | null>(null);
   readonly loaded = signal(false);
   readonly busy = signal(false);

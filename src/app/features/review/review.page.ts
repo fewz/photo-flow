@@ -8,12 +8,12 @@ import { IonBackButton, IonButtons, IonContent, IonHeader, IonToolbar } from '@i
 import { IconComponent } from '../../components/icon/icon.component';
 import { PhotoViewerComponent } from '../../components/photo-viewer/photo-viewer.component';
 import { SwipeCardComponent } from '../../components/swipe-card/swipe-card.component';
-import { REVIEW_PREVIEW_SIZE } from '../../core/constants/app.constants';
 import { toUserMessage } from '../../core/errors/app-error';
 import { Photo } from '../../core/models/photo.model';
 import { PhotoRepository } from '../../core/repositories/photo.repository';
 import { ReviewService } from '../../core/services/review.service';
 import { ThumbnailService } from '../../core/services/thumbnail.service';
+import { fullScreenPreviewSize } from '../../core/utils/preview-size';
 
 @Component({
   selector: 'app-review',
@@ -190,7 +190,7 @@ export class ReviewPage implements ViewWillEnter, ViewWillLeave {
       return cached;
     }
     try {
-      const src = await this.thumbnails.preview(photo.uri, REVIEW_PREVIEW_SIZE);
+      const src = await this.thumbnails.preview(photo.uri, fullScreenPreviewSize());
       this.previews.set(photo.id, src);
       return src;
     } catch {

@@ -10,6 +10,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
+    "android:live": "node scripts/android-live.cjs",
     "postinstall": "node scripts/link-win32-gnu-bindings.cjs"
   },
   "private": true,

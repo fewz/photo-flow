@@ -129,4 +129,50 @@ describe('PhotoScannerService', () => {
     expect((await repository.findByMediaStoreId('hidden'))?.mediaMissing).toBe(false);
     expect(await repository.counts()).toMatchObject({ total: 2 });
   });
+
+  it('reports progress while scanning and joins a scan that is already running', async () => {
+    const store = new MemoryPhotoStore();
+    await store.initialize();
+    const repository = new PhotoRepository(store);
+    const media = new FakeMediaLibrary();
+    media.photos = [photo('a', 30), photo('b', 20), photo('c', 10)];
+    const scanner = new PhotoScannerService(media, repository, new Logger(), 2);
+    const found: number[] = [];
+    const original = media.scanPhotos.bind(media);
+    media.scanPhotos = (options) => {
+      found.push(scanner.status().found);
+      expect(scanner.status().state).toBe('scanning');
+      return original(options);
+    };
+
+    const first = scanner.scan();
+    const second = scanner.scan();
+
+    expect(second).toBe(first);
+    await first;
+    expect(found).toEqual([0, 2]);
+    expect(scanner.status()).toEqual({ state: 'done', found: 3, inserted: 3, hidden: false });
+
+    scanner.dismissStatus();
+    expect(scanner.status().state).toBe('idle');
+  });
+
+  it('keeps scanning when the popup is hidden and resets the status when a scan fails', async () => {
+    const store = new MemoryPhotoStore();
+    await store.initialize();
+    const repository = new PhotoRepository(store);
+    const media = new FakeMediaLibrary();
+    media.photos = [photo('a', 30)];
+    const scanner = new PhotoScannerService(media, repository, new Logger(), 2);
+
+    const running = scanner.scan();
+    scanner.dismissStatus();
+    expect(scanner.status()).toMatchObject({ state: 'scanning', hidden: true });
+    await running;
+    expect(scanner.status()).toMatchObject({ state: 'done', hidden: false });
+
+    media.access = 'denied';
+    await expect(scanner.scan()).rejects.toBeInstanceOf(MediaPermissionError);
+    expect(scanner.status().state).toBe('idle');
+  });
 });

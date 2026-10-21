@@ -275,6 +275,14 @@ button.pf-chip {
   }
 }
 
+// Scan running: solid card instead of the dimmed disabled look.
+.pf-row-button--busy:disabled {
+  border-style: solid;
+  border-color: var(--pf-line);
+  background: var(--pf-surface);
+  opacity: 1;
+}
+
 .pf-row-button__text {
   flex: 1;
   display: flex;
@@ -443,6 +451,41 @@ button.pf-chip {
   border-radius: 999px;
   background: var(--pf-keep);
   transition: width 0.3s ease;
+}
+
+.pf-progress--thin {
+  height: 4px;
+}
+
+.pf-indeterminate {
+  width: 40%;
+  animation: pf-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes pf-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.pf-spin {
+  animation: pf-spin 0.9s linear infinite;
+}
+
+@keyframes pf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-spin,
+  .pf-indeterminate {
+    animation: none;
+  }
 }
 
 .pf-progress-label {
@@ -1511,4 +1554,65 @@ ion-tab-button.pf-tab {
   margin: 4px 0 0;
   font-size: 18px;
   font-weight: 800;
+}
+
+// Scan popup (app-scan-status), floats above every tab
+
+.pf-scan-status {
+  position: fixed;
+  top: calc(var(--ion-safe-area-top, 0px) + 12px);
+  left: 16px;
+  right: 16px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.pf-scan-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 14px 12px 14px 14px;
+  border: 1px solid var(--pf-line);
+  border-radius: 18px;
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  box-shadow: 0 12px 32px rgba(21, 23, 28, 0.16);
+  pointer-events: auto;
+}
+
+.pf-scan-popup__row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.pf-scan-popup__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.pf-scan-popup__close {
+  appearance: none;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -4px -6px 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--pf-ink-muted);
+  cursor: pointer;
+}
+
+.pf-scan-popup__action {
+  flex: none;
+  padding: 0 8px;
 }
